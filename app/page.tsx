@@ -4,11 +4,13 @@ import { Authenticated, Unauthenticated } from 'convex/react'
 import { SignInButton, UserButton } from '@clerk/nextjs'
 import { useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
+import MainPage from './mainPage/page'
 
 export default function Home() {
   return (
     <>
       <Authenticated>
+        <MainPage />
         <UserButton />
         <Content />
       </Authenticated>
@@ -22,4 +24,4 @@ export default function Home() {
 function Content() {
   const messages = useQuery(api.messages.getForCurrentUser)
   return <div>Authenticated content: {messages?.length}</div>
-}
+}   
