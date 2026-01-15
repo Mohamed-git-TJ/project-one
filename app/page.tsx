@@ -4,18 +4,18 @@ import { Authenticated, Unauthenticated } from 'convex/react'
 import { SignInButton, UserButton } from '@clerk/nextjs'
 import { useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
-import MainPage from './mainPage/page'
+import PrivateNavbar from './private/privateNavbar/page'
+import PublicNavbar from './public/publicNavbar/page'
 
 export default function Home() {
   return (
     <>
       <Authenticated>
-        <MainPage />
-        <UserButton />
-        <Content />
+        <PrivateNavbar/>
+        <Content/>
       </Authenticated>
       <Unauthenticated>
-        <SignInButton />
+        <PublicNavbar/>
       </Unauthenticated>
     </>
   )

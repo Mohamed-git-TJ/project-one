@@ -10,6 +10,7 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu"
+import { SignInButton } from "@clerk/nextjs"
 
 const components: { title: string; href: string; description: string }[] = [
   {
@@ -49,19 +50,19 @@ const components: { title: string; href: string; description: string }[] = [
   },
 ]
 
-export default function MainPage() {
+export default function PublicNavbar() {
   const isMobile = useIsMobile()
   return (
     <NavigationMenu viewport={isMobile}>
       <NavigationMenuList className="flex-wrap">
         <NavigationMenuItem>
           <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
-            <Link href="/homePage">Home</Link>
+            <Link href="/">Home</Link>
           </NavigationMenuLink>
         </NavigationMenuItem>
         <NavigationMenuItem>
           <NavigationMenuLink asChild className={navigationMenuTriggerStyle()}>
-            <Link href="/calendarTickler">Calendar / Tickler File</Link>
+            <SignInButton />
           </NavigationMenuLink>
         </NavigationMenuItem>
       </NavigationMenuList>
