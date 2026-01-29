@@ -1,3 +1,4 @@
+'use client'
 import { Calendar, Home, CircleDollarSignIcon } from "lucide-react"
 
 import {
@@ -11,11 +12,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
-import { UserButton } from '@clerk/nextjs'
+import { SignInButton, UserButton } from '@clerk/nextjs'
+import { Authenticated, Unauthenticated } from "convex/react"
 
 
-// Menu items.
-const items = [
+
+// Authorised items.
+const authItems = [
   {
     title: "Home",
     url: "/",
@@ -26,13 +29,26 @@ const items = [
     url: "/calendarTickler",
     icon: Calendar,
   },
+  
+]
+
+// Menu items.
+const items = [
+  {
+    title: "Home",
+    url: "/",
+    icon: Home,
+  },
+  
   {
     title: "Pricing",
     url: "/pricing",
     icon: CircleDollarSignIcon,
   },
+
   
 ]
+
 
 export function MainSidebar() {
   return (
@@ -41,8 +57,9 @@ export function MainSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>GTD</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
+            <Authenticated>
+              <SidebarMenu>
+              {authItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
                     <a href={item.url}>
@@ -53,14 +70,36 @@ export function MainSidebar() {
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
+            </Authenticated>
+            
+
+            <Unauthenticated>
+              <SidebarMenu>
+              {items.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild>
+                    <a href={item.url}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </a>
+                  </SidebarMenuButton>
+                  
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+            </Unauthenticated>
+  
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
         <SidebarFooter>
+
             <SidebarMenuButton>
-             <UserButton /> Account
-                    
+             <Authenticated><UserButton /> </Authenticated>
+             <Unauthenticated><SignInButton/></Unauthenticated>
+             
                 </SidebarMenuButton>
+
         </SidebarFooter>
     </Sidebar>
   )

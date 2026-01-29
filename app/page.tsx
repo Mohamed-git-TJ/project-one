@@ -12,9 +12,7 @@ export default function Home() {
       <Authenticated>
         <Content/>
       </Authenticated>
-      <Unauthenticated>
-        <SignInButton/>
-      </Unauthenticated>
+     
     </>
   )
 }
