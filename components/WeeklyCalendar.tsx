@@ -1,0 +1,83 @@
+"use client"
+
+import { useState } from "react"
+import {
+  addWeeks,
+  subWeeks,
+  startOfWeek,
+  addDays,
+  format,
+  isSameDay,
+} from "date-fns"
+
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+
+export default function WeeklyCalendar() {
+  const [currentDate, setCurrentDate] = useState(new Date())
+  const [selectedDate, setSelectedDate] = useState(new Date())
+
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
+
+  const days = Array.from({ length: 7 }).map((_, i) =>
+    addDays(weekStart, i)
+  )
+
+  return (
+    <Card className="p-6 mt-8">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <Button
+          variant="outline"
+          onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
+        >
+          Previous
+        </Button>
+
+        <h2 className="text-lg font-semibold">
+          Week of {format(weekStart, "MMM d, yyyy")}
+        </h2>
+
+        <Button
+          variant="outline"
+          onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
+        >
+          Next
+        </Button>
+      </div>
+
+      {/* Days */}
+      <div className="grid grid-cols-7 gap-4 text-center">
+        {days.map((day) => {
+          const isToday = isSameDay(day, new Date())
+          const isSelected = isSameDay(day, selectedDate)
+
+          return (
+            <button
+              key={day.toString()}
+              onClick={() => setSelectedDate(day)}
+              className={`
+                p-3 rounded-lg border transition
+                hover:bg-muted
+                ${isSelected ? "bg-primary text-primary-foreground border-primary" : ""}
+                ${isToday && !isSelected ? "border-primary" : ""}
+              `}
+            >
+              <div className="text-sm font-medium">
+                {format(day, "EEE")}
+              </div>
+              <div className="text-lg">
+                {format(day, "d")}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Optional: Selected Date Display */}
+      <div className="mt-6 text-sm text-muted-foreground">
+        Selected: {format(selectedDate, "EEEE, MMMM d, yyyy")}
+      </div>
+    </Card>
+  )
+}

@@ -31,9 +31,10 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ClerkProvider>
           <ConvexClientProvider>
+            
             <SidebarProvider>
               <MainSidebar/>
-              <SidebarTrigger />
+              <SidebarTrigger/>
               {children}
             </SidebarProvider>
             </ConvexClientProvider>
