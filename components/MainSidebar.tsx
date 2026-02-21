@@ -8,12 +8,17 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
+  
 } from "@/components/ui/sidebar"
 import { SignInButton, UserButton } from '@clerk/nextjs'
 import { Authenticated, Unauthenticated } from "convex/react"
+import { useSidebar } from "@/components/ui/sidebar"
+import Link from "next/link"
 
 
 
@@ -50,22 +55,42 @@ const items = [
 ]
 
 
+
+
 export function MainSidebar() {
+  const { state } = useSidebar()
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="px-3 py-2">
+        <div
+    className={`flex items-center ${
+      state === "collapsed"
+        ? "justify-center"
+        : "justify-between"
+    }`}
+  >
+    {state === "expanded" && (
+      <span className="text-sm font-semibold whitespace-nowrap">
+        MoGTD
+      </span>
+    )}
+
+    <SidebarTrigger />
+  </div>
+
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>GTD</SidebarGroupLabel>
           <SidebarGroupContent>
             <Authenticated>
               <SidebarMenu>
               {authItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <Link href={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -78,10 +103,10 @@ export function MainSidebar() {
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <a href={item.url}>
+                    <Link href={item.url}>
                       <item.icon />
                       <span>{item.title}</span>
-                    </a>
+                    </Link>
                   </SidebarMenuButton>
                   
                 </SidebarMenuItem>
