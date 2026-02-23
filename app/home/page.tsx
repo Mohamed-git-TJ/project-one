@@ -1,18 +1,16 @@
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { AspectRatio } from "@/components/ui/aspect-ratio"
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
 
 export default function InboxCard() {
   const [message, setMessage] = useState("");
   const [message1, setMessage1] = useState("");
-  
 
   return (
     <div className="w-full max-w-6xl mx-auto px-6 pt-10">
-        <div className="grid md:grid-cols-2 gap-6">
-       
+      <div className="grid md:grid-cols-2 gap-6">
         <Card className="rounded shadow-lg flex-1 h-65">
           <CardHeader>
             <CardTitle className="text-xl font-semibold tracking-tight">
@@ -31,7 +29,7 @@ export default function InboxCard() {
             </p>
           </CardContent>
         </Card>
-      
+
         <Card className="rounded shadow-lg flex-1 h-65">
           <CardHeader>
             <CardTitle className="text-xl font-semibold tracking-tight">
@@ -50,9 +48,8 @@ export default function InboxCard() {
             </p>
           </CardContent>
         </Card>
-       
-  </div>
-  <WeeklyCalendar />
-  </div>
+      </div>
+      <WeeklyCalendar />
+    </div>
   );
 }
