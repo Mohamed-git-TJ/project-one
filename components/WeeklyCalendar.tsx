@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
 import {
   addWeeks,
   subWeeks,
@@ -8,20 +8,18 @@ import {
   addDays,
   format,
   isSameDay,
-} from "date-fns"
+} from "date-fns";
 
-import { Card } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
-export default function WeeklyCalendar() {
-  const [currentDate, setCurrentDate] = useState(new Date())
-  const [selectedDate, setSelectedDate] = useState(new Date())
+export default function WeeklyCalendar({ items, moveItem }: any) {
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 })
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
 
-  const days = Array.from({ length: 7 }).map((_, i) =>
-    addDays(weekStart, i)
-  )
+  const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
 
   return (
     <Card className="p-6 mt-8">
@@ -49,28 +47,61 @@ export default function WeeklyCalendar() {
       {/* Days */}
       <div className="grid grid-cols-7 gap-4 text-center">
         {days.map((day) => {
-          const isToday = isSameDay(day, new Date())
-          const isSelected = isSameDay(day, selectedDate)
+          const isToday = isSameDay(day, new Date());
+          const isSelected = isSameDay(day, selectedDate);
+
+          // 🔥 Get items for this specific day
+          const dayItems = items.filter(
+            (item: any) =>
+              item.status === "scheduled" &&
+              item.date &&
+              isSameDay(new Date(item.date), day),
+          );
 
           return (
-            <button
+            <div
               key={day.toString()}
-              onClick={() => setSelectedDate(day)}
-              className={`
-                p-3 rounded-lg border transition
-                hover:bg-muted
-                ${isSelected ? "bg-primary text-primary-foreground border-primary" : ""}
-                ${isToday && !isSelected ? "border-primary" : ""}
-              `}
+              className="border rounded-lg p-2 flex flex-col gap-2"
             >
-              <div className="text-sm font-medium">
-                {format(day, "EEE")}
+              {/* Day button (UNCHANGED behavior) */}
+              <button
+                onClick={() => setSelectedDate(day)}
+                className={`
+            p-3 rounded-lg transition
+            hover:bg-muted
+            ${
+              isSelected
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border"
+            }
+            ${isToday && !isSelected ? "border-primary" : ""}
+          `}
+              >
+                <div className="text-sm font-medium">{format(day, "EEE")}</div>
+                <div className="text-lg">{format(day, "d")}</div>
+              </button>
+
+              {/* 🔥 TASK LIST */}
+              <div className="space-y-1 text-left">
+                {dayItems.map((item: any) => (
+                  <div
+                    key={item.id}
+                    className="text-xs border rounded px-2 py-1 flex justify-between items-center"
+                  >
+                    <span className="truncate">{item.title}</span>
+
+                    {/* Move back to inbox */}
+                    <button
+                      onClick={() => moveItem(item.id, "inbox")}
+                      className="text-xs opacity-70 hover:opacity-100"
+                    >
+                      ↩
+                    </button>
+                  </div>
+                ))}
               </div>
-              <div className="text-lg">
-                {format(day, "d")}
-              </div>
-            </button>
-          )
+            </div>
+          );
         })}
       </div>
 
@@ -79,5 +110,5 @@ export default function WeeklyCalendar() {
         Selected: {format(selectedDate, "EEEE, MMMM d, yyyy")}
       </div>
     </Card>
-  )
+  );
 }
