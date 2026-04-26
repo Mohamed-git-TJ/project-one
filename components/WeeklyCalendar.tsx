@@ -12,6 +12,8 @@ import {
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useDroppable } from "@dnd-kit/core";
+import DraggableItem from "@/components/DraggableItem";
 
 export default function WeeklyCalendar({ items, moveItem }: any) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -49,6 +51,9 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
         {days.map((day) => {
           const isToday = isSameDay(day, new Date());
           const isSelected = isSameDay(day, selectedDate);
+          const { setNodeRef, isOver } = useDroppable({
+            id: day.toISOString(),
+          });
 
           // 🔥 Get items for this specific day
           const dayItems = items.filter(
@@ -60,8 +65,11 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
 
           return (
             <div
+              ref={setNodeRef}
               key={day.toString()}
-              className="border rounded-lg p-2 flex flex-col gap-2"
+              className={`border rounded-lg p-2 flex flex-col gap-2 ${
+                isOver ? "bg-muted" : ""
+              }`}
             >
               {/* Day button (UNCHANGED behavior) */}
               <button
@@ -88,9 +96,12 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
                     key={item.id}
                     className="text-xs border rounded px-2 py-1 flex justify-between items-center"
                   >
-                    <span className="truncate">{item.title}</span>
+                    {/* ✅ DRAGGABLE TITLE */}
+                    <DraggableItem item={item}>
+                      <span className="truncate">{item.title}</span>
+                    </DraggableItem>
 
-                    {/* Move back to inbox */}
+                    {/* KEEP BUTTON (optional fallback) */}
                     <button
                       onClick={() => moveItem(item.id, "inbox")}
                       className="text-xs opacity-70 hover:opacity-100"
