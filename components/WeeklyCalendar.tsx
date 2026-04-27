@@ -67,7 +67,7 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
             <div
               ref={setNodeRef}
               key={day.toString()}
-              className={`border rounded-lg p-2 flex flex-col gap-2 ${
+              className={`border rounded-lg p-2 flex flex-col gap-2 min-h-[120px] ${
                 isOver ? "bg-muted" : ""
               }`}
             >

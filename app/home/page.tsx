@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -5,9 +7,9 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
 import { useDroppable } from "@dnd-kit/core";
 import DraggableItem from "@/components/DraggableItem";
-import { DndContext, rectIntersection } from "@dnd-kit/core";
+import { DndContext } from "@dnd-kit/core";
 import { closestCenter } from "@dnd-kit/core";
-import { pointerWithin } from "@dnd-kit/core";
+import { pointerWithin, rectIntersection } from "@dnd-kit/core";
 
 export default function InboxCard() {
   type Status = "inbox" | "incubator" | "scheduled";
@@ -52,110 +54,124 @@ export default function InboxCard() {
   const { setNodeRef: setInboxRef, isOver: isInboxOver } = useDroppable({
     id: "inbox",
   });
+  const { setNodeRef: setIncubatorRef, isOver: isIncubatorOver } = useDroppable(
+    {
+      id: "incubator",
+    },
+  );
 
   return (
     <DndContext
-      collisionDetection={pointerWithin}
+      collisionDetection={(args) => {
+        const pointerCollisions = pointerWithin(args);
+
+        return pointerCollisions.length > 0
+          ? pointerCollisions
+          : rectIntersection(args);
+      }}
       onDragEnd={(event) => {
         const { active, over } = event;
 
+        console.log("OVER:", over?.id);
+        console.log("ALL DROPPABLES:", event.collisions);
+
         if (!over) return;
 
-        const itemId = String(active.id);
+        const itemId = active.id.toString();
+        const overId = over.id.toString();
 
-        const overId = over?.id?.toString();
+        // 📅 calendar
+        const isDate = !isNaN(Date.parse(overId));
 
-        console.log("OVER:", overId);
+        if (isDate) {
+          moveItem(itemId, "scheduled", overId);
+          return;
+        }
 
+        // 📥 inbox
         if (overId === "inbox") {
           moveItem(itemId, "inbox");
           return;
         }
 
-        const isDate = typeof overId === "string" && !isNaN(Date.parse(overId));
-
-        if (isDate) {
-          moveItem(itemId, "scheduled", String(overId));
+        // 🧪 incubator
+        if (overId === "incubator") {
+          moveItem(itemId, "incubator");
           return;
         }
       }}
     >
       {/* ✅ YOUR UI GOES HERE */}
       <div className="w-full max-w-6xl mx-auto px-6 pt-10">
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card>
+        <div className="grid md:grid-cols-2 gap-6 items-stretch">
+          <Card className="h-full flex flex-col">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold tracking-tight">
-                INBOX
-              </CardTitle>
+              <CardTitle>INBOX</CardTitle>
             </CardHeader>
 
-            <CardContent>
-              <div
-                ref={setInboxRef}
-                className={`min-h-[200px] rounded-md transition ${
-                  isInboxOver ? "bg-muted/40" : ""
-                }`}
-              >
-                <Textarea
-                  placeholder="Capture something..."
-                  value={inboxInput}
-                  onChange={(e) => setInboxInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      addItem(inboxInput, "inbox");
-                      setInboxInput("");
-                    }
-                  }}
-                />
-                <div className="mt-4 space-y-2">
-                  {items
-                    .filter((item) => item.status === "inbox")
-                    .map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex justify-between items-center border p-2 rounded"
-                      >
-                        {/* ✅ DRAGGABLE */}
-                        <DraggableItem item={item}>{item.title}</DraggableItem>
+            <CardContent
+              ref={setInboxRef} // ✅ THIS is the droppable
+              className={`space-y-2 min-h-[200px] ${
+                isInboxOver ? "bg-muted/40 rounded-md" : ""
+              }`}
+            >
+              <Textarea
+                placeholder="Capture something..."
+                value={inboxInput}
+                onChange={(e) => setInboxInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    addItem(inboxInput, "inbox");
+                    setInboxInput("");
+                  }
+                }}
+              />
 
-                        {/* ACTIONS */}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => moveItem(item.id, "incubator")}
-                          >
-                            → Incubator
-                          </button>
+              <div className="mt-4 space-y-2">
+                {items
+                  .filter((item) => item.status === "inbox")
+                  .map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex justify-between items-center border p-2 rounded"
+                    >
+                      <DraggableItem item={item}>{item.title}</DraggableItem>
 
-                          <button
-                            onClick={() =>
-                              moveItem(
-                                item.id,
-                                "scheduled",
-                                new Date().toISOString(),
-                              )
-                            }
-                          >
-                            → Calendar
-                          </button>
-
-                          <button onClick={() => deleteItem(item.id)}>✕</button>
-                        </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => moveItem(item.id, "incubator")}>
+                          → Incubator
+                        </button>
+                        <button
+                          onClick={() =>
+                            moveItem(
+                              item.id,
+                              "scheduled",
+                              new Date().toISOString(),
+                            )
+                          }
+                        >
+                          → Calendar
+                        </button>
+                        <button onClick={() => deleteItem(item.id)}>✕</button>
                       </div>
-                    ))}
-                </div>
+                    </div>
+                  ))}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="rounded shadow-lg flex-1 h-65">
+          <Card className="h-full flex flex-col">
             <CardHeader>
-              <CardTitle className="text-xl font-semibold tracking-tight">
-                INCUBATOR
-              </CardTitle>
+              <CardTitle>INCUBATOR</CardTitle>
             </CardHeader>
-            <CardContent>
+
+            <CardContent
+              ref={setIncubatorRef} // ✅ IMPORTANT FIX
+              className={`space-y-2 min-h-[200px] ${
+                isIncubatorOver ? "bg-muted/40 rounded-md" : ""
+              }`}
+            >
               <Textarea
                 placeholder="Add long-term idea..."
                 value={incubatorInput}
@@ -168,6 +184,7 @@ export default function InboxCard() {
                   }
                 }}
               />
+
               <div className="mt-4 space-y-2">
                 {items
                   .filter((item) => item.status === "incubator")
@@ -176,15 +193,12 @@ export default function InboxCard() {
                       key={item.id}
                       className="flex justify-between items-center border p-2 rounded"
                     >
-                      {/* ✅ DRAGGABLE ITEM */}
                       <DraggableItem item={item}>{item.title}</DraggableItem>
 
-                      {/* ACTION BUTTONS */}
                       <div className="flex gap-2">
                         <button onClick={() => moveItem(item.id, "inbox")}>
                           → Inbox
                         </button>
-
                         <button
                           onClick={() =>
                             moveItem(
@@ -196,7 +210,6 @@ export default function InboxCard() {
                         >
                           → Calendar
                         </button>
-
                         <button onClick={() => deleteItem(item.id)}>✕</button>
                       </div>
                     </div>
