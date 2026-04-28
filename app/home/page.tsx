@@ -60,6 +60,8 @@ export default function InboxCard() {
     },
   );
 
+  const [expanded, setExpanded] = useState<"inbox" | "incubator" | null>(null);
+
   return (
     <DndContext
       collisionDetection={(args) => {
@@ -101,12 +103,39 @@ export default function InboxCard() {
         }
       }}
     >
+      {expanded && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 pointer-events-auto"
+          onClick={() => setExpanded(null)}
+        />
+      )}
       {/* ✅ YOUR UI GOES HERE */}
       <div className="w-full max-w-6xl mx-auto px-6 pt-10">
         <div className="grid md:grid-cols-2 gap-6 items-stretch">
-          <Card className="h-full flex flex-col">
-            <CardHeader>
+          <Card
+            className={`flex flex-col transition-all ${
+              expanded === "inbox"
+                ? "fixed inset-10 z-50 bg-white shadow-2xl"
+                : "h-[400px]"
+            }`}
+            onClick={() => {
+              if (!expanded) setExpanded("inbox");
+            }}
+          >
+            <CardHeader className="relative">
               <CardTitle>INBOX</CardTitle>
+
+              {expanded === "inbox" && (
+                <button
+                  className="absolute top-4 right-4 text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded(null);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
             </CardHeader>
 
             <CardContent
@@ -114,6 +143,7 @@ export default function InboxCard() {
               className={`space-y-2 min-h-[200px] ${
                 isInboxOver ? "bg-muted/40 rounded-md" : ""
               }`}
+              onClick={(e) => e.stopPropagation()}
             >
               <Textarea
                 placeholder="Capture something..."
@@ -128,7 +158,11 @@ export default function InboxCard() {
                 }}
               />
 
-              <div className="mt-4 space-y-2">
+              <div
+                className={`mt-4 space-y-2 overflow-y-auto pr-1 ${
+                  expanded === "inbox" ? "max-h-[70vh]" : "max-h-[200px]"
+                }`}
+              >
                 {items
                   .filter((item) => item.status === "inbox")
                   .map((item) => (
@@ -161,9 +195,30 @@ export default function InboxCard() {
             </CardContent>
           </Card>
 
-          <Card className="h-full flex flex-col">
-            <CardHeader>
+          <Card
+            className={`flex flex-col transition-all ${
+              expanded === "incubator"
+                ? "fixed inset-10 z-50 bg-white shadow-2xl"
+                : "h-[400px]"
+            }`}
+            onClick={() => {
+              if (!expanded) setExpanded("incubator");
+            }}
+          >
+            <CardHeader className="relative">
               <CardTitle>INCUBATOR</CardTitle>
+
+              {expanded === "incubator" && (
+                <button
+                  className="absolute top-4 right-4 text-sm"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpanded(null);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
             </CardHeader>
 
             <CardContent
@@ -171,6 +226,7 @@ export default function InboxCard() {
               className={`space-y-2 min-h-[200px] ${
                 isIncubatorOver ? "bg-muted/40 rounded-md" : ""
               }`}
+              onClick={(e) => e.stopPropagation()}
             >
               <Textarea
                 placeholder="Add long-term idea..."
@@ -185,7 +241,11 @@ export default function InboxCard() {
                 }}
               />
 
-              <div className="mt-4 space-y-2">
+              <div
+                className={`mt-4 space-y-2 overflow-y-auto pr-1 ${
+                  expanded === "inbox" ? "max-h-[70vh]" : "max-h-[200px]"
+                }`}
+              >
                 {items
                   .filter((item) => item.status === "incubator")
                   .map((item) => (
