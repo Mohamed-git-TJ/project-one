@@ -23,21 +23,39 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
 
   const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
 
+  const isCurrentWeek = isSameDay(
+    startOfWeek(new Date(), { weekStartsOn: 1 }),
+    weekStart,
+  );
+
   return (
     <Card className="p-6 mt-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <Button
-          variant="outline"
-          onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
-        >
-          Previous
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
+          >
+            Previous
+          </Button>
 
-        <h2 className="text-lg font-semibold">
+          {/* ✅ NEW TODAY BUTTON */}
+          <Button
+            variant={isCurrentWeek ? "secondary" : "default"}
+            onClick={() => {
+              const today = new Date();
+              setCurrentDate(today);
+              setSelectedDate(today);
+            }}
+          >
+            Today
+          </Button>
+        </div>
+
+        <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
           Week of {format(weekStart, "MMM d, yyyy")}
         </h2>
-
         <Button
           variant="outline"
           onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
