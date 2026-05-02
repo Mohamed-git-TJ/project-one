@@ -27,11 +27,18 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
     startOfWeek(new Date(), { weekStartsOn: 1 }),
     weekStart,
   );
+  const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   return (
-    <Card className="p-6 mt-8">
+    <Card className="p-6 mt-8 relative">
+      {expandedDay && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 pointer-events-auto"
+          onClick={() => setExpandedDay(null)}
+        />
+      )}
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="relative flex items-center justify-between mb-6">
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -80,18 +87,32 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
               item.date &&
               isSameDay(new Date(item.date), day),
           );
-
+          const isExpanded = expandedDay === day.toISOString();
           return (
             <div
               ref={setNodeRef}
               key={day.toString()}
-              className={`border rounded-lg p-2 flex flex-col gap-2 min-h-[120px] ${
-                isOver ? "bg-muted" : ""
-              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!expandedDay) {
+                  setExpandedDay(day.toISOString());
+                }
+              }}
+              style={{
+                pointerEvents: expandedDay && !isExpanded ? "none" : "auto",
+              }}
+              className={`border rounded-lg p-2 flex flex-col gap-2 transition-all relative ${
+                isExpanded
+                  ? "fixed inset-10 z-50 bg-white shadow-2xl"
+                  : "min-h-[120px]"
+              } ${isOver ? "bg-muted" : ""}`}
             >
               {/* Day button (UNCHANGED behavior) */}
               <button
-                onClick={() => setSelectedDate(day)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedDate(day);
+                }}
                 className={`
             p-3 rounded-lg transition
             hover:bg-muted
@@ -106,13 +127,28 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
                 <div className="text-sm font-medium">{format(day, "EEE")}</div>
                 <div className="text-lg">{format(day, "d")}</div>
               </button>
-
+              {isExpanded && (
+                <button
+                  className="absolute top-2 right-2 text-sm z-50"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedDay(null);
+                  }}
+                >
+                  ✕
+                </button>
+              )}
               {/* 🔥 TASK LIST */}
-              <div className="space-y-1 text-left">
+              <div
+                className={`space-y-1 text-left overflow-y-auto ${
+                  isExpanded ? "max-h-[70vh]" : "max-h-[120px]"
+                }`}
+                onClick={(e) => e.stopPropagation()}
+              >
                 {dayItems.map((item: any) => (
                   <div
                     key={item.id}
-                    className="text-xs border rounded px-2 py-1 flex justify-between items-center"
+                    className="text-xs border rounded px-2 py-1 flex justify-between items-center bg-white"
                   >
                     {/* ✅ DRAGGABLE TITLE */}
                     <DraggableItem item={item}>
