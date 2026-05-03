@@ -147,7 +147,7 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
               >
                 {dayItems.map((item: any) => (
                   <div
-                    key={item.id}
+                    key={item._id}
                     className="text-xs border rounded px-2 py-1 flex justify-between items-center bg-white"
                   >
                     {/* ✅ DRAGGABLE TITLE */}
@@ -157,7 +157,7 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
 
                     {/* KEEP BUTTON (optional fallback) */}
                     <button
-                      onClick={() => moveItem(item.id, "inbox")}
+                      onClick={() => moveItem(item._id, "inbox")}
                       className="text-xs opacity-70 hover:opacity-100"
                     >
                       ↩

@@ -10,46 +10,48 @@ import DraggableItem from "@/components/DraggableItem";
 import { DndContext } from "@dnd-kit/core";
 import { closestCenter } from "@dnd-kit/core";
 import { pointerWithin, rectIntersection } from "@dnd-kit/core";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 export default function InboxCard() {
   type Status = "inbox" | "incubator" | "scheduled";
 
   type Item = {
-    id: string;
+    _id: Id<"tasks">;
     title: string;
     status: Status;
-    date?: string; // for calendar
+    date?: string;
   };
 
-  const [items, setItems] = useState<Item[]>([]);
-  const [inboxInput, setInboxInput] = useState("");
-  const [incubatorInput, setIncubatorInput] = useState("");
+  const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
+  const createTask = useMutation(api.tasks.createTask);
+  const updateTask = useMutation(api.tasks.updateTask);
+  const deleteTaskMutation = useMutation(api.tasks.deleteTask);
 
-  const addItem = (title: string, status: Status) => {
+  const addItem = async (title: string, status: Status) => {
     if (!title.trim()) return;
 
-    const newItem: Item = {
-      id: Date.now().toString(),
+    await createTask({
       title,
       status,
-    };
-
-    setItems((prev) => [...prev, newItem]);
+    });
   };
 
-  const moveItem = (id: string, status: Status, date?: string) => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, status, date: status === "scheduled" ? date : undefined }
-          : item,
-      ),
-    );
+  const moveItem = async (id: Id<"tasks">, status: Status, date?: string) => {
+    await updateTask({
+      id,
+      status,
+      date,
+    });
   };
 
-  const deleteItem = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
+  const deleteItem = async (id: Id<"tasks">) => {
+    await deleteTaskMutation({ id });
   };
+
+  const [inboxInput, setInboxInput] = useState("");
+  const [incubatorInput, setIncubatorInput] = useState("");
 
   const { setNodeRef: setInboxRef, isOver: isInboxOver } = useDroppable({
     id: "inbox",
@@ -79,7 +81,7 @@ export default function InboxCard() {
 
         if (!over) return;
 
-        const itemId = active.id.toString();
+        const itemId = active.id as Id<"tasks">;
         const overId = over.id.toString();
 
         // 📅 calendar
@@ -167,19 +169,19 @@ export default function InboxCard() {
                   .filter((item) => item.status === "inbox")
                   .map((item) => (
                     <div
-                      key={item.id}
+                      key={item._id}
                       className="flex justify-between items-center border p-2 rounded"
                     >
                       <DraggableItem item={item}>{item.title}</DraggableItem>
 
                       <div className="flex gap-2">
-                        <button onClick={() => moveItem(item.id, "incubator")}>
+                        <button onClick={() => moveItem(item._id, "incubator")}>
                           → Incubator
                         </button>
                         <button
                           onClick={() =>
                             moveItem(
-                              item.id,
+                              item._id,
                               "scheduled",
                               new Date().toISOString(),
                             )
@@ -187,7 +189,7 @@ export default function InboxCard() {
                         >
                           → Calendar
                         </button>
-                        <button onClick={() => deleteItem(item.id)}>✕</button>
+                        <button onClick={() => deleteItem(item._id)}>✕</button>
                       </div>
                     </div>
                   ))}
@@ -250,19 +252,19 @@ export default function InboxCard() {
                   .filter((item) => item.status === "incubator")
                   .map((item) => (
                     <div
-                      key={item.id}
+                      key={item._id}
                       className="flex justify-between items-center border p-2 rounded"
                     >
                       <DraggableItem item={item}>{item.title}</DraggableItem>
 
                       <div className="flex gap-2">
-                        <button onClick={() => moveItem(item.id, "inbox")}>
+                        <button onClick={() => moveItem(item._id, "inbox")}>
                           → Inbox
                         </button>
                         <button
                           onClick={() =>
                             moveItem(
-                              item.id,
+                              item._id,
                               "scheduled",
                               new Date().toISOString(),
                             )
@@ -270,7 +272,7 @@ export default function InboxCard() {
                         >
                           → Calendar
                         </button>
-                        <button onClick={() => deleteItem(item.id)}>✕</button>
+                        <button onClick={() => deleteItem(item._id)}>✕</button>
                       </div>
                     </div>
                   ))}

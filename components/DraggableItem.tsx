@@ -12,7 +12,7 @@ export default function DraggableItem({
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
-      id: item.id,
+      id: item._id,
       data: {
         item, // ✅ THIS MUST EXIST
       },
