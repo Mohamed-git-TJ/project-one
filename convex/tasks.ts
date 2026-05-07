@@ -9,7 +9,7 @@ export const getTasks = query({
 
     return await ctx.db
       .query("tasks")
-      .filter((q) => q.eq(q.field("userId"), identity.subject))
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
       .collect();
   },
 });
@@ -41,6 +41,23 @@ export const updateTask = mutation({
     date: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const task = await ctx.db.get(args.id);
+
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    // ✅ OWNER CHECK
+    if (task.userId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
     await ctx.db.patch(args.id, {
       status: args.status,
       date: args.date,
@@ -51,7 +68,25 @@ export const updateTask = mutation({
 // ✅ DELETE TASK
 export const deleteTask = mutation({
   args: { id: v.id("tasks") },
+
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const task = await ctx.db.get(args.id);
+
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    // ✅ OWNER CHECK
+    if (task.userId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
     await ctx.db.delete(args.id);
   },
 });

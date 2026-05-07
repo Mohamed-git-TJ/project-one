@@ -8,5 +8,5 @@ export default defineSchema({
     status: v.string(),
     date: v.optional(v.string()),
     createdAt: v.number(),
-  }),
+  }).index("by_user", ["userId"]),
 });
