@@ -145,10 +145,20 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
                 }`}
                 onClick={(e) => e.stopPropagation()}
               >
+                {dayItems.length === 0 && (
+                  <div className="text-[10px] text-muted-foreground text-center py-2">
+                    No tasks
+                  </div>
+                )}
                 {dayItems.map((item: any) => (
                   <div
                     key={item._id}
-                    className="text-xs border rounded px-2 py-1 flex justify-between items-center bg-white"
+                    className="
+text-xs border rounded-lg px-2 py-1
+flex justify-between items-center
+bg-background hover:bg-muted/40
+transition-all
+"
                   >
                     {/* ✅ DRAGGABLE TITLE */}
                     <DraggableItem item={item}>

@@ -7,7 +7,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
 import { useDroppable } from "@dnd-kit/core";
 import DraggableItem from "@/components/DraggableItem";
-import { DndContext } from "@dnd-kit/core";
+import { DndContext, DragOverlay } from "@dnd-kit/core";
 import { closestCenter } from "@dnd-kit/core";
 import { pointerWithin, rectIntersection } from "@dnd-kit/core";
 import { useQuery, useMutation } from "convex/react";
@@ -64,6 +64,12 @@ export default function InboxCard() {
 
   const [expanded, setExpanded] = useState<"inbox" | "incubator" | null>(null);
 
+  const [activeItem, setActiveItem] = useState<Item | null>(null);
+
+  const inboxItems = items.filter((item) => item.status === "inbox");
+
+  const incubatorItems = items.filter((item) => item.status === "incubator");
+
   return (
     <DndContext
       collisionDetection={(args) => {
@@ -73,11 +79,17 @@ export default function InboxCard() {
           ? pointerCollisions
           : rectIntersection(args);
       }}
+      onDragStart={(event) => {
+        const dragged = items.find((item) => item._id === event.active.id);
+
+        if (dragged) {
+          setActiveItem(dragged);
+        }
+      }}
       onDragEnd={(event) => {
         const { active, over } = event;
 
-        console.log("OVER:", over?.id);
-        console.log("ALL DROPPABLES:", event.collisions);
+        setActiveItem(null);
 
         if (!over) return;
 
@@ -161,38 +173,48 @@ export default function InboxCard() {
               />
 
               <div
-                className={`mt-4 space-y-2 overflow-y-auto pr-1 ${
+                className={`mt-4 space-y-2 overflow-y-auto pr-2 scrollbar-thin ${
                   expanded === "inbox" ? "max-h-[70vh]" : "max-h-[200px]"
                 }`}
               >
-                {items
-                  .filter((item) => item.status === "inbox")
-                  .map((item) => (
-                    <div
-                      key={item._id}
-                      className="flex justify-between items-center border p-2 rounded"
-                    >
-                      <DraggableItem item={item}>{item.title}</DraggableItem>
+                {inboxItems.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                    <div className="text-3xl mb-2">📥</div>
 
-                      <div className="flex gap-2">
-                        <button onClick={() => moveItem(item._id, "incubator")}>
-                          → Incubator
-                        </button>
-                        <button
-                          onClick={() =>
-                            moveItem(
-                              item._id,
-                              "scheduled",
-                              new Date().toISOString(),
-                            )
-                          }
-                        >
-                          → Calendar
-                        </button>
-                        <button onClick={() => deleteItem(item._id)}>✕</button>
-                      </div>
+                    <p className="text-sm font-medium">Nothing in inbox</p>
+
+                    <p className="text-xs opacity-70 mt-1">
+                      Capture something above
+                    </p>
+                  </div>
+                )}
+
+                {inboxItems.map((item) => (
+                  <div
+                    key={item._id}
+                    className="group flex justify-between items-center border rounded-xl px-3 py-2 bg-background hover:bg-muted/40 transition-all"
+                  >
+                    <DraggableItem item={item}>{item.title}</DraggableItem>
+
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => moveItem(item._id, "incubator")}>
+                        → Incubator
+                      </button>
+                      <button
+                        onClick={() =>
+                          moveItem(
+                            item._id,
+                            "scheduled",
+                            new Date().toISOString(),
+                          )
+                        }
+                      >
+                        → Calendar
+                      </button>
+                      <button onClick={() => deleteItem(item._id)}>✕</button>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -244,38 +266,48 @@ export default function InboxCard() {
               />
 
               <div
-                className={`mt-4 space-y-2 overflow-y-auto pr-1 ${
+                className={`mt-4 space-y-2 overflow-y-auto pr-2 scrollbar-thin ${
                   expanded === "inbox" ? "max-h-[70vh]" : "max-h-[200px]"
                 }`}
               >
-                {items
-                  .filter((item) => item.status === "incubator")
-                  .map((item) => (
-                    <div
-                      key={item._id}
-                      className="flex justify-between items-center border p-2 rounded"
-                    >
-                      <DraggableItem item={item}>{item.title}</DraggableItem>
+                {incubatorItems.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                    <div className="text-3xl mb-2">🧪</div>
 
-                      <div className="flex gap-2">
-                        <button onClick={() => moveItem(item._id, "inbox")}>
-                          → Inbox
-                        </button>
-                        <button
-                          onClick={() =>
-                            moveItem(
-                              item._id,
-                              "scheduled",
-                              new Date().toISOString(),
-                            )
-                          }
-                        >
-                          → Calendar
-                        </button>
-                        <button onClick={() => deleteItem(item._id)}>✕</button>
-                      </div>
+                    <p className="text-sm font-medium">No incubator ideas</p>
+
+                    <p className="text-xs opacity-70 mt-1">
+                      Store long-term concepts here
+                    </p>
+                  </div>
+                )}
+
+                {incubatorItems.map((item) => (
+                  <div
+                    key={item._id}
+                    className="group flex justify-between items-center border rounded-xl px-3 py-2 bg-background hover:bg-muted/40 transition-all"
+                  >
+                    <DraggableItem item={item}>{item.title}</DraggableItem>
+
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button onClick={() => moveItem(item._id, "inbox")}>
+                        → Inbox
+                      </button>
+                      <button
+                        onClick={() =>
+                          moveItem(
+                            item._id,
+                            "scheduled",
+                            new Date().toISOString(),
+                          )
+                        }
+                      >
+                        → Calendar
+                      </button>
+                      <button onClick={() => deleteItem(item._id)}>✕</button>
                     </div>
-                  ))}
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
@@ -284,6 +316,17 @@ export default function InboxCard() {
           <WeeklyCalendar items={items} moveItem={moveItem} />
         </div>
       </div>
+      <DragOverlay>
+        {activeItem ? (
+          <div className="bg-background border rounded-xl shadow-2xl px-4 py-3 cursor-grabbing min-w-[220px] opacity-95">
+            <div className="text-sm font-medium">{activeItem.title}</div>
+
+            <div className="text-xs text-muted-foreground mt-1 capitalize">
+              {activeItem.status}
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }

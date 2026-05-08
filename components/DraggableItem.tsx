@@ -25,10 +25,10 @@ export default function DraggableItem({
       {...attributes}
       style={{
         transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.15 : 1,
         touchAction: "none",
       }}
-      className="cursor-grab active:cursor-grabbing"
+      className="cursor-grab active:cursor-grabbing w-full"
     >
       {children}
     </div>
