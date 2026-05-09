@@ -70,6 +70,36 @@ export const updateTask = mutation({
   },
 });
 
+export const editTask = mutation({
+  args: {
+    id: v.id("tasks"),
+    title: v.string(),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const task = await ctx.db.get(args.id);
+
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    // ✅ OWNER CHECK
+    if (task.userId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, {
+      title: args.title,
+    });
+  },
+});
+
 // ✅ TOGGLE COMPLETE
 export const toggleComplete = mutation({
   args: {

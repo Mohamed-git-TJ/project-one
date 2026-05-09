@@ -33,6 +33,7 @@ export default function InboxCard() {
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTaskMutation = useMutation(api.tasks.deleteTask);
   const toggleComplete = useMutation(api.tasks.toggleComplete);
+  const editTask = useMutation(api.tasks.editTask);
 
   const addItem = async (title: string, status: Status) => {
     if (!title.trim()) return;
@@ -57,6 +58,19 @@ export default function InboxCard() {
   const completeItem = async (id: Id<"tasks">) => {
     await toggleComplete({ id });
   };
+  const saveEdit = async () => {
+    if (!editingId) return;
+
+    if (!editingText.trim()) return;
+
+    await editTask({
+      id: editingId,
+      title: editingText,
+    });
+
+    setEditingId(null);
+    setEditingText("");
+  };
 
   const [inboxInput, setInboxInput] = useState("");
   const [incubatorInput, setIncubatorInput] = useState("");
@@ -73,6 +87,10 @@ export default function InboxCard() {
   const [expanded, setExpanded] = useState<"inbox" | "incubator" | null>(null);
 
   const [activeItem, setActiveItem] = useState<Item | null>(null);
+
+  const [editingId, setEditingId] = useState<Id<"tasks"> | null>(null);
+
+  const [editingText, setEditingText] = useState("");
 
   const inboxItems = items.filter((item) => item.status === "inbox");
 
@@ -204,9 +222,39 @@ export default function InboxCard() {
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
-                    <DraggableItem item={item}>{item.title}</DraggableItem>
+                    {editingId === item._id ? (
+                      <input
+                        autoFocus
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onBlur={saveEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveEdit();
+                          }
 
-                    <div className="flex gap-2 opacity-0 translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200">
+                          if (e.key === "Escape") {
+                            setEditingId(null);
+                            setEditingText("");
+                          }
+                        }}
+                        className="flex-1 min-w-0 bg-background outline-none border rounded px-2 py-1 text-sm"
+                      />
+                    ) : (
+                      <DraggableItem item={item}>
+                        <div
+                          onDoubleClick={() => {
+                            setEditingId(item._id);
+                            setEditingText(item.title);
+                          }}
+                          className="w-full"
+                        >
+                          {item.title}
+                        </div>
+                      </DraggableItem>
+                    )}
+
+                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
                       <button onClick={() => completeItem(item._id)}>
                         {item.completed ? "↺" : "✓"}
                       </button>
@@ -302,9 +350,39 @@ export default function InboxCard() {
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
-                    <DraggableItem item={item}>{item.title}</DraggableItem>
+                    {editingId === item._id ? (
+                      <input
+                        autoFocus
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onBlur={saveEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveEdit();
+                          }
 
-                    <div className="flex gap-2 opacity-0 translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200">
+                          if (e.key === "Escape") {
+                            setEditingId(null);
+                            setEditingText("");
+                          }
+                        }}
+                        className="flex-1 min-w-0 bg-background outline-none border rounded px-2 py-1 text-sm"
+                      />
+                    ) : (
+                      <DraggableItem item={item}>
+                        <div
+                          onDoubleClick={() => {
+                            setEditingId(item._id);
+                            setEditingText(item.title);
+                          }}
+                          className="w-full"
+                        >
+                          {item.title}
+                        </div>
+                      </DraggableItem>
+                    )}
+
+                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
                       <button onClick={() => completeItem(item._id)}>
                         {item.completed ? "↺" : "✓"}
                       </button>
@@ -335,6 +413,11 @@ export default function InboxCard() {
             items={items}
             moveItem={moveItem}
             completeItem={completeItem}
+            editingId={editingId}
+            editingText={editingText}
+            setEditingId={setEditingId}
+            setEditingText={setEditingText}
+            saveEdit={saveEdit}
           />
         </div>
       </div>

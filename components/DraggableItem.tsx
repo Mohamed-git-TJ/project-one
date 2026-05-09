@@ -13,27 +13,31 @@ export default function DraggableItem({
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: item._id,
-      disabled: item.completed,
       data: {
-        item, // ✅ THIS MUST EXIST
+        item,
       },
     });
 
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
       style={{
         transform: CSS.Translate.toString(transform),
         opacity: isDragging ? 0.15 : 1,
-        touchAction: "none",
       }}
-      className={`w-full ${
-        item.completed ? "cursor-default" : "cursor-grab active:cursor-grabbing"
-      }`}
+      className="flex items-center gap-2 w-full"
     >
-      {children}
+      {/* DRAG HANDLE */}
+      <button
+        {...listeners}
+        {...attributes}
+        className="cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 transition text-xs"
+      >
+        ⋮⋮
+      </button>
+
+      {/* CONTENT */}
+      <div className="flex-1 min-w-0">{children}</div>
     </div>
   );
 }

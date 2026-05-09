@@ -15,7 +15,16 @@ import { Button } from "@/components/ui/button";
 import { useDroppable } from "@dnd-kit/core";
 import DraggableItem from "@/components/DraggableItem";
 
-export default function WeeklyCalendar({ items, moveItem, completeItem }: any) {
+export default function WeeklyCalendar({
+  items,
+  moveItem,
+  completeItem,
+  editingId,
+  editingText,
+  setEditingId,
+  setEditingText,
+  saveEdit,
+}: any) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -158,19 +167,43 @@ export default function WeeklyCalendar({ items, moveItem, completeItem }: any) {
                     }`}
                   >
                     {/* ✅ DRAGGABLE TITLE */}
-                    <DraggableItem item={item}>
-                      <span
-                        className={`truncate ${
-                          item.completed
-                            ? "line-through text-muted-foreground"
-                            : ""
-                        }`}
-                      >
-                        {item.title}
-                      </span>
-                    </DraggableItem>
+                    {editingId === item._id ? (
+                      <input
+                        autoFocus
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        onBlur={saveEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            saveEdit();
+                          }
 
-                    <div className="flex gap-2 items-center opacity-0 translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200">
+                          if (e.key === "Escape") {
+                            setEditingId(null);
+                            setEditingText("");
+                          }
+                        }}
+                        className="flex-1 min-w-0 bg-background outline-none border rounded px-1 py-0.5 text-xs"
+                      />
+                    ) : (
+                      <DraggableItem item={item}>
+                        <span
+                          onDoubleClick={() => {
+                            setEditingId(item._id);
+                            setEditingText(item.title);
+                          }}
+                          className={`truncate w-full ${
+                            item.completed
+                              ? "line-through text-muted-foreground"
+                              : ""
+                          }`}
+                        >
+                          {item.title}
+                        </span>
+                      </DraggableItem>
+                    )}
+
+                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
                       {/* ✅ COMPLETE BUTTON */}
                       <button
                         onClick={() => completeItem(item._id)}
