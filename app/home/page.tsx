@@ -22,12 +22,17 @@ export default function InboxCard() {
     title: string;
     status: Status;
     date?: string;
+
+    // ✅ NEW
+    completed?: boolean;
+    completedAt?: number;
   };
 
   const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
   const createTask = useMutation(api.tasks.createTask);
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTaskMutation = useMutation(api.tasks.deleteTask);
+  const toggleComplete = useMutation(api.tasks.toggleComplete);
 
   const addItem = async (title: string, status: Status) => {
     if (!title.trim()) return;
@@ -48,6 +53,9 @@ export default function InboxCard() {
 
   const deleteItem = async (id: Id<"tasks">) => {
     await deleteTaskMutation({ id });
+  };
+  const completeItem = async (id: Id<"tasks">) => {
+    await toggleComplete({ id });
   };
 
   const [inboxInput, setInboxInput] = useState("");
@@ -192,11 +200,16 @@ export default function InboxCard() {
                 {inboxItems.map((item) => (
                   <div
                     key={item._id}
-                    className="group flex justify-between items-center border rounded-xl px-3 py-2 bg-background hover:bg-muted/40 transition-all"
+                    className={`group flex justify-between items-center border p-2 rounded transition-all hover:bg-muted/50 ${
+                      item.completed ? "opacity-50 line-through" : ""
+                    }`}
                   >
                     <DraggableItem item={item}>{item.title}</DraggableItem>
 
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-2 opacity-0 translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200">
+                      <button onClick={() => completeItem(item._id)}>
+                        {item.completed ? "↺" : "✓"}
+                      </button>
                       <button onClick={() => moveItem(item._id, "incubator")}>
                         → Incubator
                       </button>
@@ -285,11 +298,16 @@ export default function InboxCard() {
                 {incubatorItems.map((item) => (
                   <div
                     key={item._id}
-                    className="group flex justify-between items-center border rounded-xl px-3 py-2 bg-background hover:bg-muted/40 transition-all"
+                    className={`group flex justify-between items-center border p-2 rounded transition-all hover:bg-muted/50 ${
+                      item.completed ? "opacity-50 line-through" : ""
+                    }`}
                   >
                     <DraggableItem item={item}>{item.title}</DraggableItem>
 
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex gap-2 opacity-0 translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200">
+                      <button onClick={() => completeItem(item._id)}>
+                        {item.completed ? "↺" : "✓"}
+                      </button>
                       <button onClick={() => moveItem(item._id, "inbox")}>
                         → Inbox
                       </button>
@@ -313,7 +331,11 @@ export default function InboxCard() {
           </Card>
         </div>
         <div className="mt-10">
-          <WeeklyCalendar items={items} moveItem={moveItem} />
+          <WeeklyCalendar
+            items={items}
+            moveItem={moveItem}
+            completeItem={completeItem}
+          />
         </div>
       </div>
       <DragOverlay>

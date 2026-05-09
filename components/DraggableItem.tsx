@@ -13,6 +13,7 @@ export default function DraggableItem({
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: item._id,
+      disabled: item.completed,
       data: {
         item, // ✅ THIS MUST EXIST
       },
@@ -28,7 +29,9 @@ export default function DraggableItem({
         opacity: isDragging ? 0.15 : 1,
         touchAction: "none",
       }}
-      className="cursor-grab active:cursor-grabbing w-full"
+      className={`w-full ${
+        item.completed ? "cursor-default" : "cursor-grab active:cursor-grabbing"
+      }`}
     >
       {children}
     </div>

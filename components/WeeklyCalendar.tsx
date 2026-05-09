@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useDroppable } from "@dnd-kit/core";
 import DraggableItem from "@/components/DraggableItem";
 
-export default function WeeklyCalendar({ items, moveItem }: any) {
+export default function WeeklyCalendar({ items, moveItem, completeItem }: any) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -153,25 +153,40 @@ export default function WeeklyCalendar({ items, moveItem }: any) {
                 {dayItems.map((item: any) => (
                   <div
                     key={item._id}
-                    className="
-text-xs border rounded-lg px-2 py-1
-flex justify-between items-center
-bg-background hover:bg-muted/40
-transition-all
-"
+                    className={`group text-xs border rounded px-2 py-1 flex justify-between items-center transition-all hover:bg-muted/50 ${
+                      item.completed ? "opacity-50 bg-muted" : "bg-white"
+                    }`}
                   >
                     {/* ✅ DRAGGABLE TITLE */}
                     <DraggableItem item={item}>
-                      <span className="truncate">{item.title}</span>
+                      <span
+                        className={`truncate ${
+                          item.completed
+                            ? "line-through text-muted-foreground"
+                            : ""
+                        }`}
+                      >
+                        {item.title}
+                      </span>
                     </DraggableItem>
 
-                    {/* KEEP BUTTON (optional fallback) */}
-                    <button
-                      onClick={() => moveItem(item._id, "inbox")}
-                      className="text-xs opacity-70 hover:opacity-100"
-                    >
-                      ↩
-                    </button>
+                    <div className="flex gap-2 items-center opacity-0 translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-200">
+                      {/* ✅ COMPLETE BUTTON */}
+                      <button
+                        onClick={() => completeItem(item._id)}
+                        className="text-xs"
+                      >
+                        {item.completed ? "↺" : "✓"}
+                      </button>
+
+                      {/* ✅ MOVE BACK */}
+                      <button
+                        onClick={() => moveItem(item._id, "inbox")}
+                        className="text-xs opacity-70 hover:opacity-100"
+                      >
+                        ↩
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
