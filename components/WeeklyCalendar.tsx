@@ -97,6 +97,7 @@ export default function WeeklyCalendar({
               isSameDay(new Date(item.date), day),
           );
           const isExpanded = expandedDay === day.toISOString();
+          const visibleItems = isExpanded ? dayItems : dayItems.slice(0, 3);
           return (
             <div
               ref={setNodeRef}
@@ -112,8 +113,8 @@ export default function WeeklyCalendar({
               }}
               className={`border rounded-lg p-2 flex flex-col gap-2 transition-all relative ${
                 isExpanded
-                  ? "fixed inset-10 z-50 bg-white shadow-2xl"
-                  : "min-h-[120px]"
+                  ? "fixed top-10 bottom-10 left-1/2 -translate-x-1/2 w-full max-w-2xl z-50 bg-background shadow-2xl"
+                  : "min-h-[170px]"
               } ${isOver ? "bg-muted" : ""}`}
             >
               {/* Day button (UNCHANGED behavior) */}
@@ -149,21 +150,24 @@ export default function WeeklyCalendar({
               )}
               {/* 🔥 TASK LIST */}
               <div
-                className={`space-y-1 text-left overflow-y-auto ${
-                  isExpanded ? "max-h-[70vh]" : "max-h-[120px]"
+                className={`space-y-2 text-left ${
+                  isExpanded ? "max-h-[70vh] overflow-y-auto pr-1" : ""
                 }`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {dayItems.length === 0 && (
                   <div className="text-[10px] text-muted-foreground text-center py-2">
-                    No tasks
+                    Nothing scheduled
                   </div>
                 )}
-                {dayItems.map((item: any) => (
+
+                {visibleItems.map((item: any) => (
                   <div
                     key={item._id}
-                    className={`group text-xs border rounded px-2 py-1 flex justify-between items-center transition-all hover:bg-muted/50 ${
-                      item.completed ? "opacity-50 bg-muted" : "bg-white"
+                    className={`group flex items-start justify-between gap-2 text-xs border rounded-lg px-2 py-2 transition-all hover:bg-muted/50 overflow-hidden ${
+                      item.completed
+                        ? "opacity-50 bg-muted"
+                        : "bg-background/80 backdrop-blur"
                     }`}
                   >
                     {/* ✅ DRAGGABLE TITLE */}
@@ -186,24 +190,35 @@ export default function WeeklyCalendar({
                         className="flex-1 min-w-0 bg-background outline-none border rounded px-1 py-0.5 text-xs"
                       />
                     ) : (
-                      <DraggableItem item={item}>
-                        <span
-                          onDoubleClick={() => {
-                            setEditingId(item._id);
-                            setEditingText(item.title);
-                          }}
-                          className={`truncate w-full ${
-                            item.completed
-                              ? "line-through text-muted-foreground"
-                              : ""
-                          }`}
-                        >
-                          {item.title}
-                        </span>
-                      </DraggableItem>
+                      <div className="flex-1 min-w-0 relative">
+                        <DraggableItem item={item}>
+                          <span
+                            onDoubleClick={() => {
+                              setEditingId(item._id);
+                              setEditingText(item.title);
+                            }}
+                            className={`block text-left leading-snug ${
+                              isExpanded
+                                ? "whitespace-pre-wrap break-words"
+                                : "h-[2.5rem] overflow-hidden break-words pr-4"
+                            } ${
+                              item.completed
+                                ? "line-through text-muted-foreground"
+                                : ""
+                            }`}
+                          >
+                            {item.title}
+                            {!isExpanded && item.title.length > 45 && (
+                              <span className="absolute bottom-0 right-0 bg-background pl-1">
+                                ...
+                              </span>
+                            )}
+                          </span>
+                        </DraggableItem>
+                      </div>
                     )}
 
-                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
+                    <div className="flex flex-col gap-1 shrink-0 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
                       {/* ✅ COMPLETE BUTTON */}
                       <button
                         onClick={() => completeItem(item._id)}
@@ -222,6 +237,17 @@ export default function WeeklyCalendar({
                     </div>
                   </div>
                 ))}
+                {!isExpanded && dayItems.length > 3 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedDay(day.toISOString());
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-foreground text-left px-1"
+                  >
+                    +{dayItems.length - 3} more
+                  </button>
+                )}
               </div>
             </div>
           );
