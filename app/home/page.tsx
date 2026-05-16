@@ -150,7 +150,7 @@ export default function InboxCard() {
         />
       )}
       {/* ✅ YOUR UI GOES HERE */}
-      <div className="w-full max-w-6xl mx-auto px-6 pt-10">
+      <div className="w-full max-w-7xl mx-auto px-6 pt-10">
         <div className="grid md:grid-cols-2 gap-6 items-stretch">
           <Card
             className={`flex flex-col transition-all ${
