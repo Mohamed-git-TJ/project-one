@@ -14,6 +14,13 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 export default function InboxCard() {
   type Status = "inbox" | "incubator" | "scheduled";
 
@@ -241,17 +248,32 @@ export default function InboxCard() {
                         className="flex-1 min-w-0 bg-background outline-none border rounded px-2 py-1 text-sm"
                       />
                     ) : (
-                      <DraggableItem item={item}>
-                        <div
-                          onDoubleClick={() => {
-                            setEditingId(item._id);
-                            setEditingText(item.title);
-                          }}
-                          className="w-full"
-                        >
-                          {item.title}
-                        </div>
-                      </DraggableItem>
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div>
+                              <DraggableItem item={item}>
+                                <div
+                                  onDoubleClick={() => {
+                                    setEditingId(item._id);
+                                    setEditingText(item.title);
+                                  }}
+                                  className="w-full truncate"
+                                >
+                                  {item.title}
+                                </div>
+                              </DraggableItem>
+                            </div>
+                          </TooltipTrigger>
+
+                          <TooltipContent
+                            side="top"
+                            className="max-w-[260px] text-sm leading-relaxed animate-in fade-in zoom-in-95"
+                          >
+                            {item.title}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
 
                     <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
@@ -369,17 +391,32 @@ export default function InboxCard() {
                         className="flex-1 min-w-0 bg-background outline-none border rounded px-2 py-1 text-sm"
                       />
                     ) : (
-                      <DraggableItem item={item}>
-                        <div
-                          onDoubleClick={() => {
-                            setEditingId(item._id);
-                            setEditingText(item.title);
-                          }}
-                          className="w-full"
-                        >
-                          {item.title}
-                        </div>
-                      </DraggableItem>
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div>
+                              <DraggableItem item={item}>
+                                <div
+                                  onDoubleClick={() => {
+                                    setEditingId(item._id);
+                                    setEditingText(item.title);
+                                  }}
+                                  className="w-full truncate"
+                                >
+                                  {item.title}
+                                </div>
+                              </DraggableItem>
+                            </div>
+                          </TooltipTrigger>
+
+                          <TooltipContent
+                            side="top"
+                            className="max-w-[260px] text-sm leading-relaxed animate-in fade-in zoom-in-95"
+                          >
+                            {item.title}
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
 
                     <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">

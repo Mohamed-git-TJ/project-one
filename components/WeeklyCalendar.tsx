@@ -15,6 +15,13 @@ import { Button } from "@/components/ui/button";
 import { useDroppable } from "@dnd-kit/core";
 import DraggableItem from "@/components/DraggableItem";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+
 export default function WeeklyCalendar({
   items,
   moveItem,
@@ -219,25 +226,42 @@ export default function WeeklyCalendar({
                       />
                     ) : (
                       <div className="flex-1 min-w-0 relative">
-                        <DraggableItem item={item}>
-                          <span
-                            onDoubleClick={() => {
-                              setEditingId(item._id);
-                              setEditingText(item.title);
-                            }}
-                            className={`block text-left leading-5 ${
-                              isExpanded
-                                ? "whitespace-pre-wrap break-words"
-                                : "truncate whitespace-nowrap pr-6"
-                            } ${
-                              item.completed
-                                ? "line-through text-muted-foreground"
-                                : ""
-                            }`}
-                          >
-                            {item.title}
-                          </span>
-                        </DraggableItem>
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div>
+                                <DraggableItem item={item}>
+                                  <span
+                                    onDoubleClick={() => {
+                                      setEditingId(item._id);
+                                      setEditingText(item.title);
+                                    }}
+                                    className={`block text-left leading-5 ${
+                                      isExpanded
+                                        ? "whitespace-pre-wrap break-words"
+                                        : "truncate whitespace-nowrap pr-6"
+                                    } ${
+                                      item.completed
+                                        ? "line-through text-muted-foreground"
+                                        : ""
+                                    }`}
+                                  >
+                                    {item.title}
+                                  </span>
+                                </DraggableItem>
+                              </div>
+                            </TooltipTrigger>
+
+                            {!isExpanded && (
+                              <TooltipContent
+                                side="top"
+                                className="max-w-[260px] text-sm leading-relaxed animate-in fade-in zoom-in-95"
+                              >
+                                {item.title}
+                              </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     )}
 
