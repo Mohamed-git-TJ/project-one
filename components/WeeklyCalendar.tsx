@@ -31,6 +31,7 @@ export default function WeeklyCalendar({
   setEditingId,
   setEditingText,
   saveEdit,
+  openTaskDetails,
 }: any) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -266,6 +267,15 @@ export default function WeeklyCalendar({
                     )}
 
                     <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-background/90 rounded-md px-1 py-0.5 shadow-sm">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTaskDetails(item);
+                        }}
+                        className="text-xs"
+                      >
+                        ⓘ
+                      </button>
                       {/* ✅ COMPLETE BUTTON */}
                       <button
                         onClick={() => completeItem(item._id)}

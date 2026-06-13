@@ -43,7 +43,6 @@ export const updateTask = mutation({
     id: v.id("tasks"),
     status: v.string(),
     date: v.optional(v.string()),
-    completed: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -65,7 +64,6 @@ export const updateTask = mutation({
     await ctx.db.patch(args.id, {
       status: args.status,
       date: args.date,
-      completed: args.completed,
     });
   },
 });
@@ -96,6 +94,39 @@ export const editTask = mutation({
 
     await ctx.db.patch(args.id, {
       title: args.title,
+    });
+  },
+});
+
+export const updateTaskDetails = mutation({
+  args: {
+    id: v.id("tasks"),
+    title: v.string(),
+    notes: v.optional(v.string()),
+    priority: v.optional(v.string()),
+  },
+
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const task = await ctx.db.get(args.id);
+
+    if (!task) {
+      throw new Error("Task not found");
+    }
+
+    if (task.userId !== identity.subject) {
+      throw new Error("Unauthorized");
+    }
+
+    await ctx.db.patch(args.id, {
+      title: args.title,
+      notes: args.notes,
+      priority: args.priority,
     });
   },
 });
@@ -145,7 +176,7 @@ export const deleteTask = mutation({
     const task = await ctx.db.get(args.id);
 
     if (!task) {
-      throw new Error("Task not found");
+      return;
     }
 
     // ✅ OWNER CHECK

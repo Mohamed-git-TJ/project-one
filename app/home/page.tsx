@@ -33,6 +33,8 @@ export default function InboxCard() {
     // ✅ NEW
     completed?: boolean;
     completedAt?: number;
+    notes?: string;
+    priority?: string;
   };
 
   const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
@@ -41,6 +43,7 @@ export default function InboxCard() {
   const deleteTaskMutation = useMutation(api.tasks.deleteTask);
   const toggleComplete = useMutation(api.tasks.toggleComplete);
   const editTask = useMutation(api.tasks.editTask);
+  const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
 
   const addItem = async (title: string, status: Status) => {
     if (!title.trim()) return;
@@ -60,7 +63,11 @@ export default function InboxCard() {
   };
 
   const deleteItem = async (id: Id<"tasks">) => {
-    await deleteTaskMutation({ id });
+    try {
+      await deleteTaskMutation({ id });
+    } catch (error) {
+      console.error("Delete failed:", error);
+    }
   };
   const completeItem = async (id: Id<"tasks">) => {
     await toggleComplete({ id });
@@ -77,6 +84,27 @@ export default function InboxCard() {
 
     setEditingId(null);
     setEditingText("");
+  };
+
+  const openTaskDetails = (task: Item) => {
+    setSelectedTask(task);
+    setDetailsTitle(task.title);
+    setDetailsNotes(task.notes || "");
+    setDetailsPriority(task.priority || "medium");
+  };
+
+  const saveTaskDetails = async () => {
+    if (!selectedTask) return;
+    if (!detailsTitle.trim()) return;
+
+    await updateTaskDetails({
+      id: selectedTask._id,
+      title: detailsTitle,
+      notes: detailsNotes,
+      priority: detailsPriority,
+    });
+
+    setSelectedTask(null);
   };
 
   const [inboxInput, setInboxInput] = useState("");
@@ -98,6 +126,10 @@ export default function InboxCard() {
   const [editingId, setEditingId] = useState<Id<"tasks"> | null>(null);
 
   const [editingText, setEditingText] = useState("");
+  const [selectedTask, setSelectedTask] = useState<Item | null>(null);
+  const [detailsTitle, setDetailsTitle] = useState("");
+  const [detailsNotes, setDetailsNotes] = useState("");
+  const [detailsPriority, setDetailsPriority] = useState("medium");
 
   const inboxItems = items.filter((item) => item.status === "inbox");
 
@@ -277,6 +309,14 @@ export default function InboxCard() {
                     )}
 
                     <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTaskDetails(item);
+                        }}
+                      >
+                        ⓘ
+                      </button>
                       <button onClick={() => completeItem(item._id)}>
                         {item.completed ? "↺" : "✓"}
                       </button>
@@ -420,6 +460,14 @@ export default function InboxCard() {
                     )}
 
                     <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openTaskDetails(item);
+                        }}
+                      >
+                        ⓘ
+                      </button>
                       <button onClick={() => completeItem(item._id)}>
                         {item.completed ? "↺" : "✓"}
                       </button>
@@ -455,9 +503,94 @@ export default function InboxCard() {
             setEditingId={setEditingId}
             setEditingText={setEditingText}
             saveEdit={saveEdit}
+            openTaskDetails={openTaskDetails}
           />
         </div>
       </div>
+      {selectedTask && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50"
+            onClick={() => setSelectedTask(null)}
+          />
+
+          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
+            <Card className="bg-background border shadow-2xl">
+              <CardHeader className="relative">
+                <CardTitle>Task Details</CardTitle>
+
+                <button
+                  className="absolute right-4 top-4 text-sm"
+                  onClick={() => setSelectedTask(null)}
+                >
+                  ✕
+                </button>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm text-muted-foreground">Title</label>
+                  <input
+                    value={detailsTitle}
+                    onChange={(e) => setDetailsTitle(e.target.value)}
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-muted-foreground">Notes</label>
+                  <Textarea
+                    value={detailsNotes}
+                    onChange={(e) => setDetailsNotes(e.target.value)}
+                    placeholder="Add notes..."
+                    className="mt-1 min-h-[140px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm text-muted-foreground">
+                    Priority
+                  </label>
+                  <select
+                    value={detailsPriority}
+                    onChange={(e) => setDetailsPriority(e.target.value)}
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2"
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+
+                <div className="text-sm text-muted-foreground">
+                  Status:{" "}
+                  <span className="capitalize">{selectedTask.status}</span>
+                </div>
+
+                <div className="flex justify-between pt-4">
+                  <button
+                    onClick={async () => {
+                      const taskId = selectedTask._id;
+                      setSelectedTask(null);
+                      await deleteItem(taskId);
+                    }}
+                    className="text-sm text-red-500"
+                  >
+                    Delete
+                  </button>
+
+                  <button
+                    onClick={saveTaskDetails}
+                    className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
+                  >
+                    Save
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
       <DragOverlay>
         {activeItem ? (
           <div className="bg-background border rounded-xl shadow-2xl px-4 py-3 cursor-grabbing min-w-[220px] opacity-95">

@@ -9,6 +9,8 @@ export default defineSchema({
     date: v.optional(v.string()),
     completed: v.optional(v.boolean()),
     completedAt: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    priority: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
 });
