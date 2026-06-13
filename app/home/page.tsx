@@ -184,17 +184,17 @@ export default function InboxCard() {
     >
       {expanded && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 pointer-events-auto"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 pointer-events-auto"
           onClick={() => setExpanded(null)}
         />
       )}
       {/* ✅ YOUR UI GOES HERE */}
-      <div className="w-full max-w-7xl mx-auto px-6 pt-10">
+      <div className="min-h-screen w-full max-w-7xl mx-auto px-6 pt-10 text-foreground">
         <div className="grid md:grid-cols-2 gap-6 items-stretch">
           <Card
-            className={`flex flex-col transition-all ${
+            className={`flex flex-col border border-zinc-800 bg-zinc-950/80 shadow-2xl transition-all ${
               expanded === "inbox"
-                ? "fixed inset-10 z-50 bg-white shadow-2xl"
+                ? "fixed inset-10 z-50 bg-zinc-950 border border-zinc-700 shadow-2xl"
                 : "h-[400px]"
             }`}
             onClick={() => {
@@ -257,7 +257,7 @@ export default function InboxCard() {
                 {inboxItems.map((item) => (
                   <div
                     key={item._id}
-                    className={`group flex justify-between items-center border p-2 rounded transition-all hover:bg-muted/50 ${
+                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-2 rounded-lg transition-all hover:bg-zinc-800/80 ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
@@ -343,9 +343,9 @@ export default function InboxCard() {
           </Card>
 
           <Card
-            className={`flex flex-col transition-all ${
+            className={`flex flex-col border border-zinc-800 bg-zinc-950/80 shadow-2xl transition-all ${
               expanded === "incubator"
-                ? "fixed inset-10 z-50 bg-white shadow-2xl"
+                ? "fixed inset-10 z-50 bg-zinc-950 border border-zinc-700 shadow-2xl"
                 : "h-[400px]"
             }`}
             onClick={() => {
@@ -408,7 +408,7 @@ export default function InboxCard() {
                 {incubatorItems.map((item) => (
                   <div
                     key={item._id}
-                    className={`group flex justify-between items-center border p-2 rounded transition-all hover:bg-muted/50 ${
+                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-2 rounded-lg transition-all hover:bg-zinc-800/80 ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
@@ -581,7 +581,7 @@ export default function InboxCard() {
 
                   <button
                     onClick={saveTaskDetails}
-                    className="rounded-md bg-primary px-4 py-2 text-primary-foreground"
+                    className="rounded-md bg-zinc-100 px-4 py-2 text-zinc-950 hover:bg-zinc-200"
                   >
                     Save
                   </button>

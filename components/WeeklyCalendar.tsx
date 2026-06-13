@@ -51,10 +51,10 @@ export default function WeeklyCalendar({
   const [activeDay, setActiveDay] = useState<string | null>(null);
 
   return (
-    <Card className="p-6 mt-8 relative">
+    <Card className="p-6 mt-8 relative border border-zinc-800 bg-zinc-950/80 shadow-2xl">
       {expandedDay && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 pointer-events-auto"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 pointer-events-auto"
           onClick={() => setExpandedDay(null)}
         />
       )}
@@ -63,6 +63,7 @@ export default function WeeklyCalendar({
         <div className="flex gap-2">
           <Button
             variant="outline"
+            className="bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800"
             onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
           >
             Previous
@@ -70,7 +71,8 @@ export default function WeeklyCalendar({
 
           {/* ✅ NEW TODAY BUTTON */}
           <Button
-            variant={isCurrentWeek ? "secondary" : "default"}
+            variant="outline"
+            className="bg-zinc-100 text-zinc-950 border-zinc-300 hover:bg-zinc-200"
             onClick={() => {
               const today = new Date();
               setCurrentDate(today);
@@ -86,6 +88,7 @@ export default function WeeklyCalendar({
         </h2>
         <Button
           variant="outline"
+          className="bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800"
           onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
         >
           Next
@@ -135,12 +138,12 @@ export default function WeeklyCalendar({
               style={{
                 pointerEvents: expandedDay && !isExpanded ? "none" : "auto",
               }}
-              className={`border rounded-xl p-3 flex flex-col gap-2 transition-all transition-all duration-200 ease-out relative ${
+              className={`border border-zinc-800 rounded-xl p-3 flex flex-col gap-2 transition-all transition-all duration-200 ease-out relative ${
                 isExpanded
                   ? "fixed top-10 bottom-10 left-1/2 -translate-x-1/2 w-full max-w-3xl rounded-2xl border z-50 bg-background shadow-2xl"
                   : isActive
-                    ? "min-h-[280px] bg-primary/5 border-primary shadow-md ring-1 ring-primary/15"
-                    : "min-h-[220px]"
+                    ? "min-h-[280px] bg-zinc-900 border-zinc-300/30 shadow-lg ring-1 ring-white/10"
+                    : "min-h-[220px] bg-zinc-950/70"
               } ${isOver ? "bg-muted" : ""}`}
             >
               {/* Day button (UNCHANGED behavior) */}
@@ -154,14 +157,14 @@ export default function WeeklyCalendar({
             hover:bg-muted transition-all
             ${
               isSelected
-                ? "bg-primary text-primary-foreground border-primary"
-                : "border"
+                ? "bg-zinc-100/10 text-zinc-100 border-zinc-300/30"
+                : "border border-zinc-800"
             }
             ${
               isActive
-                ? "border-primary bg-primary/10"
+                ? "border-zinc-300/30 bg-zinc-100/5"
                 : isToday && !isSelected
-                  ? "border-primary"
+                  ? "border-zinc-300/30"
                   : ""
             }
           `}
@@ -200,10 +203,10 @@ export default function WeeklyCalendar({
                 {visibleItems.map((item: any) => (
                   <div
                     key={item._id}
-                    className={`group relative flex items-center gap-2 text-xs border border-border/50 border-l-2 border-l-primary/40 rounded-md px-2 py-1 transition-all hover:bg-muted/40 hover:border-primary/40 cursor-pointer overflow-hidden ${
+                    className={`group relative flex items-center gap-2 text-xs border border-border/50 border-l-2 border-l-zinc-300/20 rounded-md px-2 py-1 transition-all hover:bg-muted/40 hover:border-zinc-300/30 cursor-pointer overflow-hidden ${
                       item.completed
-                        ? "bg-muted/40 text-muted-foreground"
-                        : "bg-background/80 "
+                        ? "bg-zinc-800/60 text-zinc-400"
+                        : "bg-zinc-900/80 text-zinc-100"
                     }`}
                   >
                     {/* ✅ DRAGGABLE TITLE */}
