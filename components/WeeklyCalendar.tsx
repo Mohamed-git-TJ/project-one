@@ -49,6 +49,17 @@ export default function WeeklyCalendar({
   const todayIso = new Date().toDateString();
 
   const [activeDay, setActiveDay] = useState<string | null>(null);
+  const { setNodeRef: setNextWeekRef, isOver: isNextWeekOver } = useDroppable({
+  id: "next-week",
+});
+const { setNodeRef: setPreviousWeekRef, isOver: isPreviousWeekOver } =
+  useDroppable({
+    id: "previous-week",
+  });
+
+const { setNodeRef: setTodayRef, isOver: isTodayOver } = useDroppable({
+  id: "today",
+});
 
   return (
     <Card className="p-6 mt-8 relative border border-zinc-800 bg-zinc-950/80 shadow-2xl">
@@ -62,37 +73,46 @@ export default function WeeklyCalendar({
       <div className="relative flex items-center justify-between mb-6">
         <div className="flex gap-2">
           <Button
-            variant="outline"
-            className="bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800"
-            onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
-          >
-            Previous
-          </Button>
+  ref={setPreviousWeekRef}
+  variant="outline"
+  className={`bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800 ${
+    isPreviousWeekOver ? "ring-2 ring-zinc-200/40 bg-zinc-800" : ""
+  }`}
+  onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
+>
+  Previous
+</Button>
 
           {/* ✅ NEW TODAY BUTTON */}
           <Button
-            variant="outline"
-            className="bg-zinc-100 text-zinc-950 border-zinc-300 hover:bg-zinc-200"
-            onClick={() => {
-              const today = new Date();
-              setCurrentDate(today);
-              setSelectedDate(today);
-            }}
-          >
-            Today
-          </Button>
+  ref={setTodayRef}
+  variant="outline"
+  className={`bg-zinc-100 text-zinc-950 border-zinc-300 hover:bg-zinc-200 ${
+    isTodayOver ? "ring-2 ring-zinc-200/60 scale-[1.03]" : ""
+  }`}
+  onClick={() => {
+    const today = new Date();
+    setCurrentDate(today);
+    setSelectedDate(today);
+  }}
+>
+  Today
+</Button>
         </div>
 
         <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
           Week of {format(weekStart, "MMM d, yyyy")}
         </h2>
         <Button
-          variant="outline"
-          className="bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800"
-          onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
-        >
-          Next
-        </Button>
+  ref={setNextWeekRef}
+  variant="outline"
+  className={`bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800 ${
+    isNextWeekOver ? "ring-2 ring-zinc-200/40 bg-zinc-800" : ""
+  }`}
+  onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
+>
+  Next
+</Button>
       </div>
 
       {/* Days */}

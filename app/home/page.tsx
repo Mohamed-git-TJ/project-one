@@ -160,9 +160,35 @@ export default function InboxCard() {
 
         const itemId = active.id as Id<"tasks">;
         const overId = over.id.toString();
+        const draggedItem = items.find((item) => item._id === itemId);
 
         // 📅 calendar
         const isDate = !isNaN(Date.parse(overId));
+        if (overId === "next-week") {
+  if (!draggedItem?.date) return;
+
+  const nextWeekDate = new Date(draggedItem.date);
+  nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+
+  moveItem(itemId, "scheduled", nextWeekDate.toISOString());
+  return;
+}
+if (overId === "previous-week") {
+  if (!draggedItem?.date) return;
+
+  const previousWeekDate = new Date(draggedItem.date);
+  previousWeekDate.setDate(previousWeekDate.getDate() - 7);
+
+  moveItem(itemId, "scheduled", previousWeekDate.toISOString());
+  return;
+}
+
+if (overId === "today") {
+  const today = new Date();
+
+  moveItem(itemId, "scheduled", today.toISOString());
+  return;
+}
 
         if (isDate) {
           moveItem(itemId, "scheduled", overId);
