@@ -33,6 +33,11 @@ export default function WeeklyCalendar({
   saveEdit,
   openTaskDetails,
 }: any) {
+
+  const [activeDay, setActiveDay] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+const [calendarSearch, setCalendarSearch] = useState("");
+const [searchIndex, setSearchIndex] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -47,8 +52,30 @@ export default function WeeklyCalendar({
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   const todayIso = new Date().toDateString();
+  const searchMatches = calendarSearch.trim()
+  ? items.filter(
+      (item: any) =>
+        item.status === "scheduled" &&
+        item.date &&
+        item.title.toLowerCase().includes(calendarSearch.trim().toLowerCase()),
+    )
+  : [];
 
-  const [activeDay, setActiveDay] = useState<string | null>(null);
+const currentMatch = searchMatches[searchIndex];
+
+const goToMatch = (index: number) => {
+  const match = searchMatches[index];
+  if (!match?.date) return;
+
+  const matchDate = new Date(match.date);
+
+  setCurrentDate(matchDate);
+  setSelectedDate(matchDate);
+  setActiveDay(matchDate.toDateString());
+  setExpandedDay(null);
+};
+
+  
   const { setNodeRef: setNextWeekRef, isOver: isNextWeekOver } = useDroppable({
   id: "next-week",
 });
@@ -71,7 +98,7 @@ const { setNodeRef: setTodayRef, isOver: isTodayOver } = useDroppable({
       )}
       {/* Header */}
       <div className="relative flex items-center justify-between mb-6">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <Button
   ref={setPreviousWeekRef}
   variant="outline"
@@ -98,6 +125,13 @@ const { setNodeRef: setTodayRef, isOver: isTodayOver } = useDroppable({
 >
   Today
 </Button>
+<Button
+  variant="outline"
+  className="bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800"
+  onClick={() => setShowSearch((prev) => !prev)}
+>
+  🔍
+</Button>
         </div>
 
         <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
@@ -115,8 +149,63 @@ const { setNodeRef: setTodayRef, isOver: isTodayOver } = useDroppable({
 </Button>
       </div>
 
-      {/* Days */}
-      <div className="grid grid-cols-7 gap-3 text-center items-start">
+{showSearch && (
+  <div className="mb-6 flex items-center gap-2">
+    <input
+      value={calendarSearch}
+      onChange={(e) => {
+        setCalendarSearch(e.target.value);
+        setSearchIndex(0);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && searchMatches.length > 0) {
+          goToMatch(0);
+        }
+      }}
+      placeholder="Find scheduled task..."
+      className="w-full max-w-sm rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+    />
+
+    <Button
+      variant="outline"
+      disabled={searchMatches.length === 0}
+      onClick={() => {
+        const nextIndex =
+          searchIndex === 0 ? searchMatches.length - 1 : searchIndex - 1;
+
+        setSearchIndex(nextIndex);
+        goToMatch(nextIndex);
+      }}
+    >
+      ←
+    </Button>
+
+    <Button
+      variant="outline"
+      disabled={searchMatches.length === 0}
+      onClick={() => {
+        const nextIndex =
+          searchIndex === searchMatches.length - 1 ? 0 : searchIndex + 1;
+
+        setSearchIndex(nextIndex);
+        goToMatch(nextIndex);
+      }}
+    >
+      →
+    </Button>
+
+    <div className="text-xs text-muted-foreground whitespace-nowrap">
+      {calendarSearch
+        ? searchMatches.length > 0
+          ? `${searchIndex + 1} / ${searchMatches.length}`
+          : "No matches"
+        : ""}
+    </div>
+  </div>
+)}
+
+{/* Days */}
+<div className="grid grid-cols-7 gap-3 text-center items-start">
         {days.map((day) => {
           const isToday = isSameDay(day, new Date());
           const isSelected = isSameDay(day, selectedDate);
@@ -223,7 +312,12 @@ const { setNodeRef: setTodayRef, isOver: isTodayOver } = useDroppable({
                 {visibleItems.map((item: any) => (
                   <div
                     key={item._id}
-                    className={`group relative flex items-center gap-2 text-xs border border-border/50 border-l-2 border-l-zinc-300/20 rounded-md px-2 py-1 transition-all hover:bg-muted/40 hover:border-zinc-300/30 cursor-pointer overflow-hidden ${
+                    className={`group relative flex items-center gap-2 text-xs border border-border/50 border-l-2 rounded-md px-2 py-1 transition-all hover:bg-muted/40 hover:border-zinc-300/30 cursor-pointer overflow-hidden ${
+  calendarSearch.trim() &&
+  item.title.toLowerCase().includes(calendarSearch.trim().toLowerCase())
+    ? "border-zinc-100 border-l-zinc-100 ring-1 ring-zinc-100/30"
+    : "border-l-zinc-300/20"
+} ${
                       item.completed
                         ? "bg-zinc-800/60 text-zinc-400"
                         : "bg-zinc-900/80 text-zinc-100"

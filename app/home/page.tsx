@@ -416,7 +416,7 @@ if (overId === "today") {
 
               <div
                 className={`mt-4 space-y-2 overflow-y-auto pr-2 scrollbar-thin ${
-                  expanded === "inbox" ? "max-h-[70vh]" : "max-h-[200px]"
+                  expanded === "incubator" ? "max-h-[70vh]" : "max-h-[200px]"
                 }`}
               >
                 {incubatorItems.length === 0 && (
