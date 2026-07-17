@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -25,17 +25,36 @@ export default function InboxCard() {
   type Status = "inbox" | "incubator" | "scheduled";
 
   type Item = {
-    _id: Id<"tasks">;
-    title: string;
-    status: Status;
-    date?: string;
+  _id: Id<"tasks">;
 
-    // ✅ NEW
-    completed?: boolean;
-    completedAt?: number;
-    notes?: string;
-    priority?: string;
-  };
+  title: string;
+
+  status: Status;
+
+  date?: string;
+
+  completed?: boolean;
+
+  completedAt?: number;
+
+  notes?: string;
+
+  priority?: string;
+
+
+  // ⭐ Recurring task fields
+  recurring?: boolean;
+
+  recurrenceType?: string;
+
+  recurrenceInterval?: number;
+
+  recurrenceCount?: number;
+
+  recurrenceDays?: string[];
+
+  recurrenceEndDate?: string;
+};
 
   const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
   const createTask = useMutation(api.tasks.createTask);
@@ -62,13 +81,16 @@ export default function InboxCard() {
     });
   };
 
-  const deleteItem = async (id: Id<"tasks">) => {
+  const deleteItem = React.useCallback(
+  async (id: Id<"tasks">) => {
     try {
       await deleteTaskMutation({ id });
     } catch (error) {
       console.error("Delete failed:", error);
     }
-  };
+  },
+  [deleteTaskMutation]
+);
   const completeItem = async (id: Id<"tasks">) => {
     await toggleComplete({ id });
   };
@@ -91,21 +113,64 @@ export default function InboxCard() {
     setDetailsTitle(task.title);
     setDetailsNotes(task.notes || "");
     setDetailsPriority(task.priority || "medium");
+    setDetailsRecurring(task.recurring || false);
+
+setDetailsRecurrenceType(
+  task.recurrenceType || "weekly"
+);
+
+setDetailsRecurrenceInterval(
+  task.recurrenceInterval || 1
+);
+
+setDetailsRecurrenceCount(
+  task.recurrenceCount
+);
+
+setDetailsRecurrenceDays(
+  task.recurrenceDays || []
+);
+
+setDetailsRecurrenceEndDate(
+  task.recurrenceEndDate || ""
+);
   };
 
   const saveTaskDetails = async () => {
-    if (!selectedTask) return;
-    if (!detailsTitle.trim()) return;
+  if (!selectedTask) return;
+  if (!detailsTitle.trim()) return;
 
-    await updateTaskDetails({
-      id: selectedTask._id,
-      title: detailsTitle,
-      notes: detailsNotes,
-      priority: detailsPriority,
-    });
+  await updateTaskDetails({
+    id: selectedTask._id,
+    title: detailsTitle,
+    notes: detailsNotes,
+    priority: detailsPriority,
 
-    setSelectedTask(null);
-  };
+    recurring: detailsRecurring,
+
+    recurrenceType: detailsRecurring
+      ? detailsRecurrenceType
+      : undefined,
+
+    recurrenceInterval: detailsRecurring
+      ? detailsRecurrenceInterval
+      : undefined,
+
+    recurrenceCount: detailsRecurring
+      ? detailsRecurrenceCount
+      : undefined,
+
+    recurrenceDays: detailsRecurring
+      ? detailsRecurrenceDays
+      : undefined,
+
+    recurrenceEndDate: detailsRecurring
+      ? detailsRecurrenceEndDate
+      : undefined,
+  });
+
+  setSelectedTask(null);
+};
 
   const [inboxInput, setInboxInput] = useState("");
   const [incubatorInput, setIncubatorInput] = useState("");
@@ -127,9 +192,75 @@ export default function InboxCard() {
 
   const [editingText, setEditingText] = useState("");
   const [selectedTask, setSelectedTask] = useState<Item | null>(null);
+  const [highlightedTask, setHighlightedTask] = useState<Id<"tasks"> | null>(null);
   const [detailsTitle, setDetailsTitle] = useState("");
   const [detailsNotes, setDetailsNotes] = useState("");
   const [detailsPriority, setDetailsPriority] = useState("medium");
+  const [detailsRecurring, setDetailsRecurring] =
+  useState(false);
+
+const [detailsRecurrenceType, setDetailsRecurrenceType] =
+  useState("weekly");
+
+const [detailsRecurrenceInterval, setDetailsRecurrenceInterval] =
+  useState(1);
+
+const [detailsRecurrenceCount, setDetailsRecurrenceCount] =
+  useState<number | undefined>();
+
+const [detailsRecurrenceDays, setDetailsRecurrenceDays] =
+  useState<string[]>([]);
+
+const [detailsRecurrenceEndDate, setDetailsRecurrenceEndDate] =
+  useState("");
+  const [focusInboxInput, setFocusInboxInput] = useState(false);
+
+useEffect(() => {
+  const handleKeyDown = (e: KeyboardEvent) => {
+    // Ignore shortcuts while typing
+    const target = e.target as HTMLElement;
+
+    if (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+
+    // N = New Inbox Task
+    if (e.key === "n" || e.key === "N") {
+      e.preventDefault();
+
+      setExpanded("inbox");
+      setFocusInboxInput(true);
+    }
+
+    // ESC = Close windows
+    if (e.key === "Escape") {
+      setExpanded(null);
+      setSelectedTask(null);
+      setEditingId(null);
+    }
+    if (e.key === "Delete") {
+
+  if (selectedTask) {
+
+    deleteItem(selectedTask._id);
+
+    setSelectedTask(null);
+
+  }
+
+}
+  };
+
+  window.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown);
+  };
+}, [selectedTask]);
 
   const inboxItems = items.filter((item) => item.status === "inbox");
 
@@ -165,30 +296,30 @@ export default function InboxCard() {
         // 📅 calendar
         const isDate = !isNaN(Date.parse(overId));
         if (overId === "next-week") {
-  if (!draggedItem?.date) return;
+          if (!draggedItem?.date) return;
 
-  const nextWeekDate = new Date(draggedItem.date);
-  nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+          const nextWeekDate = new Date(draggedItem.date);
+          nextWeekDate.setDate(nextWeekDate.getDate() + 7);
 
-  moveItem(itemId, "scheduled", nextWeekDate.toISOString());
-  return;
-}
-if (overId === "previous-week") {
-  if (!draggedItem?.date) return;
+          moveItem(itemId, "scheduled", nextWeekDate.toISOString());
+          return;
+        }
+        if (overId === "previous-week") {
+          if (!draggedItem?.date) return;
 
-  const previousWeekDate = new Date(draggedItem.date);
-  previousWeekDate.setDate(previousWeekDate.getDate() - 7);
+          const previousWeekDate = new Date(draggedItem.date);
+          previousWeekDate.setDate(previousWeekDate.getDate() - 7);
 
-  moveItem(itemId, "scheduled", previousWeekDate.toISOString());
-  return;
-}
+          moveItem(itemId, "scheduled", previousWeekDate.toISOString());
+          return;
+        }
 
-if (overId === "today") {
-  const today = new Date();
+        if (overId === "today") {
+          const today = new Date();
 
-  moveItem(itemId, "scheduled", today.toISOString());
-  return;
-}
+          moveItem(itemId, "scheduled", today.toISOString());
+          return;
+        }
 
         if (isDate) {
           moveItem(itemId, "scheduled", overId);
@@ -251,6 +382,7 @@ if (overId === "today") {
               onClick={(e) => e.stopPropagation()}
             >
               <Textarea
+                autoFocus={focusInboxInput}
                 placeholder="Capture something..."
                 value={inboxInput}
                 onChange={(e) => setInboxInput(e.target.value)}
@@ -283,6 +415,10 @@ if (overId === "today") {
                 {inboxItems.map((item) => (
                   <div
                     key={item._id}
+                    onClick={()=>{
+  setSelectedTask(item);
+  setHighlightedTask(item._id);
+}}
                     className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-2 rounded-lg transition-all hover:bg-zinc-800/80 ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
@@ -343,7 +479,10 @@ if (overId === "today") {
                       >
                         ⓘ
                       </button>
-                      <button onClick={() => completeItem(item._id)}>
+                      <button onClick={(e)=>{
+  e.stopPropagation();
+  completeItem(item._id);
+}}>
                         {item.completed ? "↺" : "✓"}
                       </button>
                       <button onClick={() => moveItem(item._id, "incubator")}>
@@ -434,6 +573,10 @@ if (overId === "today") {
                 {incubatorItems.map((item) => (
                   <div
                     key={item._id}
+                    onClick={()=>{
+  setSelectedTask(item);
+  setHighlightedTask(item._id);
+}}
                     className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-2 rounded-lg transition-all hover:bg-zinc-800/80 ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
@@ -494,7 +637,10 @@ if (overId === "today") {
                       >
                         ⓘ
                       </button>
-                      <button onClick={() => completeItem(item._id)}>
+                      <button onClick={(e)=>{
+  e.stopPropagation();
+  completeItem(item._id);
+}}>
                         {item.completed ? "↺" : "✓"}
                       </button>
                       <button onClick={() => moveItem(item._id, "inbox")}>
@@ -570,6 +716,11 @@ if (overId === "today") {
                     onChange={(e) => setDetailsNotes(e.target.value)}
                     placeholder="Add notes..."
                     className="mt-1 min-h-[140px]"
+                    onKeyDown={(e) => {
+  if (e.ctrlKey && e.key === "Enter") {
+    saveTaskDetails();
+  }
+}}
                   />
                 </div>
 
@@ -587,6 +738,147 @@ if (overId === "today") {
                     <option value="high">High</option>
                   </select>
                 </div>
+                <div className="space-y-3">
+
+<label className="text-sm text-muted-foreground">
+Repeat
+</label>
+
+
+<select
+value={
+ detailsRecurring
+ ? detailsRecurrenceType
+ : "none"
+}
+onChange={(e)=>{
+
+if(e.target.value==="none"){
+ setDetailsRecurring(false);
+}
+else{
+ setDetailsRecurring(true);
+ setDetailsRecurrenceType(e.target.value);
+}
+
+}}
+
+className="
+w-full rounded-md border px-3 py-2
+"
+>
+
+<option value="none">
+Does not repeat
+</option>
+
+<option value="daily">
+Daily
+</option>
+
+<option value="weekly">
+Weekly
+</option>
+
+<option value="monthly">
+Monthly
+</option>
+
+</select>
+
+
+{detailsRecurring && (
+
+<>
+
+<div>
+
+<label>
+Every
+</label>
+
+<input
+type="number"
+min="1"
+value={detailsRecurrenceInterval}
+
+onChange={(e)=>
+setDetailsRecurrenceInterval(
+Number(e.target.value)
+)
+}
+
+className="
+w-full rounded-md border px-3 py-2
+"
+/>
+
+<span className="text-xs text-muted-foreground">
+Example: every 2 weeks
+</span>
+
+</div>
+
+
+<div>
+
+<label>
+Number of repeats
+</label>
+
+<input
+type="number"
+
+value={
+detailsRecurrenceCount || ""
+}
+
+onChange={(e)=>
+setDetailsRecurrenceCount(
+Number(e.target.value)
+)
+}
+
+className="
+w-full rounded-md border px-3 py-2
+"
+/>
+
+</div>
+
+
+<div>
+
+<label>
+End date (optional)
+</label>
+
+
+<input
+type="date"
+
+value={detailsRecurrenceEndDate}
+
+onChange={(e)=>
+setDetailsRecurrenceEndDate(
+e.target.value
+)
+}
+
+className="
+w-full rounded-md border px-3 py-2
+"
+/>
+
+
+</div>
+
+
+</>
+
+)}
+
+</div>
 
                 <div className="text-sm text-muted-foreground">
                   Status:{" "}
