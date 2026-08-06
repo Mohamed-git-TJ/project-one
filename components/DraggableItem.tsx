@@ -23,9 +23,11 @@ export default function DraggableItem({
       ref={setNodeRef}
       style={{
         transform: CSS.Translate.toString(transform),
-        opacity: isDragging ? 0.15 : 1,
+        opacity: isDragging ? 0.3 : 1,
       }}
-      className="flex items-center gap-2 w-full"
+      className={`flex items-center gap-2 w-full transition-all duration-150 ${
+        isDragging ? "scale-95" : "scale-100"
+      }`}
     >
       {/* DRAG HANDLE */}
       <button

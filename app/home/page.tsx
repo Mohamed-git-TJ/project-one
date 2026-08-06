@@ -25,36 +25,35 @@ export default function InboxCard() {
   type Status = "inbox" | "incubator" | "scheduled";
 
   type Item = {
-  _id: Id<"tasks">;
+    _id: Id<"tasks">;
 
-  title: string;
+    title: string;
 
-  status: Status;
+    status: Status;
 
-  date?: string;
+    date?: string;
 
-  completed?: boolean;
+    completed?: boolean;
 
-  completedAt?: number;
+    completedAt?: number;
 
-  notes?: string;
+    notes?: string;
 
-  priority?: string;
+    priority?: string;
 
+    // ⭐ Recurring task fields
+    recurring?: boolean;
 
-  // ⭐ Recurring task fields
-  recurring?: boolean;
+    recurrenceType?: string;
 
-  recurrenceType?: string;
+    recurrenceInterval?: number;
 
-  recurrenceInterval?: number;
+    recurrenceCount?: number;
 
-  recurrenceCount?: number;
+    recurrenceDays?: string[];
 
-  recurrenceDays?: string[];
-
-  recurrenceEndDate?: string;
-};
+    recurrenceEndDate?: string;
+  };
 
   const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
   const createTask = useMutation(api.tasks.createTask);
@@ -82,15 +81,15 @@ export default function InboxCard() {
   };
 
   const deleteItem = React.useCallback(
-  async (id: Id<"tasks">) => {
-    try {
-      await deleteTaskMutation({ id });
-    } catch (error) {
-      console.error("Delete failed:", error);
-    }
-  },
-  [deleteTaskMutation]
-);
+    async (id: Id<"tasks">) => {
+      try {
+        await deleteTaskMutation({ id });
+      } catch (error) {
+        console.error("Delete failed:", error);
+      }
+    },
+    [deleteTaskMutation],
+  );
   const completeItem = async (id: Id<"tasks">) => {
     await toggleComplete({ id });
   };
@@ -115,62 +114,46 @@ export default function InboxCard() {
     setDetailsPriority(task.priority || "medium");
     setDetailsRecurring(task.recurring || false);
 
-setDetailsRecurrenceType(
-  task.recurrenceType || "weekly"
-);
+    setDetailsRecurrenceType(task.recurrenceType || "weekly");
 
-setDetailsRecurrenceInterval(
-  task.recurrenceInterval || 1
-);
+    setDetailsRecurrenceInterval(task.recurrenceInterval || 1);
 
-setDetailsRecurrenceCount(
-  task.recurrenceCount
-);
+    setDetailsRecurrenceCount(task.recurrenceCount);
 
-setDetailsRecurrenceDays(
-  task.recurrenceDays || []
-);
+    setDetailsRecurrenceDays(task.recurrenceDays || []);
 
-setDetailsRecurrenceEndDate(
-  task.recurrenceEndDate || ""
-);
+    setDetailsRecurrenceEndDate(task.recurrenceEndDate || "");
   };
 
   const saveTaskDetails = async () => {
-  if (!selectedTask) return;
-  if (!detailsTitle.trim()) return;
+    if (!selectedTask) return;
+    if (!detailsTitle.trim()) return;
 
-  await updateTaskDetails({
-    id: selectedTask._id,
-    title: detailsTitle,
-    notes: detailsNotes,
-    priority: detailsPriority,
+    await updateTaskDetails({
+      id: selectedTask._id,
+      title: detailsTitle,
+      notes: detailsNotes,
+      priority: detailsPriority,
 
-    recurring: detailsRecurring,
+      recurring: detailsRecurring,
 
-    recurrenceType: detailsRecurring
-      ? detailsRecurrenceType
-      : undefined,
+      recurrenceType: detailsRecurring ? detailsRecurrenceType : undefined,
 
-    recurrenceInterval: detailsRecurring
-      ? detailsRecurrenceInterval
-      : undefined,
+      recurrenceInterval: detailsRecurring
+        ? detailsRecurrenceInterval
+        : undefined,
 
-    recurrenceCount: detailsRecurring
-      ? detailsRecurrenceCount
-      : undefined,
+      recurrenceCount: detailsRecurring ? detailsRecurrenceCount : undefined,
 
-    recurrenceDays: detailsRecurring
-      ? detailsRecurrenceDays
-      : undefined,
+      recurrenceDays: detailsRecurring ? detailsRecurrenceDays : undefined,
 
-    recurrenceEndDate: detailsRecurring
-      ? detailsRecurrenceEndDate
-      : undefined,
-  });
+      recurrenceEndDate: detailsRecurring
+        ? detailsRecurrenceEndDate
+        : undefined,
+    });
 
-  setSelectedTask(null);
-};
+    setSelectedTask(null);
+  };
 
   const [inboxInput, setInboxInput] = useState("");
   const [incubatorInput, setIncubatorInput] = useState("");
@@ -192,75 +175,71 @@ setDetailsRecurrenceEndDate(
 
   const [editingText, setEditingText] = useState("");
   const [selectedTask, setSelectedTask] = useState<Item | null>(null);
-  const [highlightedTask, setHighlightedTask] = useState<Id<"tasks"> | null>(null);
+  const [highlightedTask, setHighlightedTask] = useState<Id<"tasks"> | null>(
+    null,
+  );
   const [detailsTitle, setDetailsTitle] = useState("");
   const [detailsNotes, setDetailsNotes] = useState("");
   const [detailsPriority, setDetailsPriority] = useState("medium");
-  const [detailsRecurring, setDetailsRecurring] =
-  useState(false);
+  const [detailsRecurring, setDetailsRecurring] = useState(false);
 
-const [detailsRecurrenceType, setDetailsRecurrenceType] =
-  useState("weekly");
+  const [detailsRecurrenceType, setDetailsRecurrenceType] = useState("weekly");
 
-const [detailsRecurrenceInterval, setDetailsRecurrenceInterval] =
-  useState(1);
+  const [detailsRecurrenceInterval, setDetailsRecurrenceInterval] = useState(1);
 
-const [detailsRecurrenceCount, setDetailsRecurrenceCount] =
-  useState<number | undefined>();
+  const [detailsRecurrenceCount, setDetailsRecurrenceCount] = useState<
+    number | undefined
+  >();
 
-const [detailsRecurrenceDays, setDetailsRecurrenceDays] =
-  useState<string[]>([]);
+  const [detailsRecurrenceDays, setDetailsRecurrenceDays] = useState<string[]>(
+    [],
+  );
 
-const [detailsRecurrenceEndDate, setDetailsRecurrenceEndDate] =
-  useState("");
+  const [detailsRecurrenceEndDate, setDetailsRecurrenceEndDate] = useState("");
   const [focusInboxInput, setFocusInboxInput] = useState(false);
 
-useEffect(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    // Ignore shortcuts while typing
-    const target = e.target as HTMLElement;
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore shortcuts while typing
+      const target = e.target as HTMLElement;
 
-    if (
-      target.tagName === "INPUT" ||
-      target.tagName === "TEXTAREA" ||
-      target.isContentEditable
-    ) {
-      return;
-    }
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
 
-    // N = New Inbox Task
-    if (e.key === "n" || e.key === "N") {
-      e.preventDefault();
+      // N = New Inbox Task
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
 
-      setExpanded("inbox");
-      setFocusInboxInput(true);
-    }
+        setExpanded("inbox");
+        setFocusInboxInput(true);
+      }
 
-    // ESC = Close windows
-    if (e.key === "Escape") {
-      setExpanded(null);
-      setSelectedTask(null);
-      setEditingId(null);
-    }
-    if (e.key === "Delete") {
+      // ESC = Close windows
+      if (e.key === "Escape") {
+        setExpanded(null);
+        setSelectedTask(null);
+        setEditingId(null);
+      }
+      if (e.key === "Delete") {
+        if (selectedTask) {
+          deleteItem(selectedTask._id);
 
-  if (selectedTask) {
+          setSelectedTask(null);
+        }
+      }
+    };
 
-    deleteItem(selectedTask._id);
+    window.addEventListener("keydown", handleKeyDown);
 
-    setSelectedTask(null);
-
-  }
-
-}
-  };
-
-  window.addEventListener("keydown", handleKeyDown);
-
-  return () => {
-    window.removeEventListener("keydown", handleKeyDown);
-  };
-}, [selectedTask]);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedTask]);
 
   const inboxItems = items.filter((item) => item.status === "inbox");
 
@@ -359,7 +338,7 @@ useEffect(() => {
             }}
           >
             <CardHeader className="relative">
-              <CardTitle>INBOX</CardTitle>
+              <CardTitle className="text-xl tracking-wide">INBOX</CardTitle>
 
               {expanded === "inbox" && (
                 <button
@@ -383,6 +362,7 @@ useEffect(() => {
             >
               <Textarea
                 autoFocus={focusInboxInput}
+                className="min-h-24 resize-none"
                 placeholder="Capture something..."
                 value={inboxInput}
                 onChange={(e) => setInboxInput(e.target.value)}
@@ -404,10 +384,13 @@ useEffect(() => {
                   <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                     <div className="text-3xl mb-2">📥</div>
 
-                    <p className="text-sm font-medium">Nothing in inbox</p>
+                    <p className="text-sm font-medium">Your inbox is empty</p>
 
-                    <p className="text-xs opacity-70 mt-1">
-                      Capture something above
+                    <p className="text-xs opacity-70 mt-1 text-center">
+                      Capture anything that is on your mind.
+                      <br />
+                      Press <span className="font-semibold">N</span> to create
+                      your first task.
                     </p>
                   </div>
                 )}
@@ -415,11 +398,11 @@ useEffect(() => {
                 {inboxItems.map((item) => (
                   <div
                     key={item._id}
-                    onClick={()=>{
-  setSelectedTask(item);
-  setHighlightedTask(item._id);
-}}
-                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-2 rounded-lg transition-all hover:bg-zinc-800/80 ${
+                    onClick={() => {
+                      setSelectedTask(item);
+                      setHighlightedTask(item._id);
+                    }}
+                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
@@ -470,7 +453,7 @@ useEffect(() => {
                       </TooltipProvider>
                     )}
 
-                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
+                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -479,10 +462,12 @@ useEffect(() => {
                       >
                         ⓘ
                       </button>
-                      <button onClick={(e)=>{
-  e.stopPropagation();
-  completeItem(item._id);
-}}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          completeItem(item._id);
+                        }}
+                      >
                         {item.completed ? "↺" : "✓"}
                       </button>
                       <button onClick={() => moveItem(item._id, "incubator")}>
@@ -518,7 +503,7 @@ useEffect(() => {
             }}
           >
             <CardHeader className="relative">
-              <CardTitle>INCUBATOR</CardTitle>
+              <CardTitle className="text-xl tracking-wide">INCUBATOR</CardTitle>
 
               {expanded === "incubator" && (
                 <button
@@ -541,6 +526,7 @@ useEffect(() => {
               onClick={(e) => e.stopPropagation()}
             >
               <Textarea
+                className="min-h-24 resize-none"
                 placeholder="Add long-term idea..."
                 value={incubatorInput}
                 onChange={(e) => setIncubatorInput(e.target.value)}
@@ -562,10 +548,12 @@ useEffect(() => {
                   <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
                     <div className="text-3xl mb-2">🧪</div>
 
-                    <p className="text-sm font-medium">No incubator ideas</p>
+                    <p className="text-sm font-medium">
+                      Nothing incubating yet
+                    </p>
 
-                    <p className="text-xs opacity-70 mt-1">
-                      Store long-term concepts here
+                    <p className="text-xs opacity-70 mt-1 text-center">
+                      Ideas without deadlines belong here.
                     </p>
                   </div>
                 )}
@@ -573,11 +561,11 @@ useEffect(() => {
                 {incubatorItems.map((item) => (
                   <div
                     key={item._id}
-                    onClick={()=>{
-  setSelectedTask(item);
-  setHighlightedTask(item._id);
-}}
-                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-2 rounded-lg transition-all hover:bg-zinc-800/80 ${
+                    onClick={() => {
+                      setSelectedTask(item);
+                      setHighlightedTask(item._id);
+                    }}
+                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
@@ -628,7 +616,7 @@ useEffect(() => {
                       </TooltipProvider>
                     )}
 
-                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200">
+                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -637,10 +625,12 @@ useEffect(() => {
                       >
                         ⓘ
                       </button>
-                      <button onClick={(e)=>{
-  e.stopPropagation();
-  completeItem(item._id);
-}}>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          completeItem(item._id);
+                        }}
+                      >
                         {item.completed ? "↺" : "✓"}
                       </button>
                       <button onClick={() => moveItem(item._id, "inbox")}>
@@ -665,7 +655,7 @@ useEffect(() => {
             </CardContent>
           </Card>
         </div>
-        <div className="mt-10">
+        <div className="mt-8">
           <WeeklyCalendar
             items={items}
             moveItem={moveItem}
@@ -687,7 +677,7 @@ useEffect(() => {
           />
 
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
-            <Card className="bg-background border shadow-2xl">
+            <Card className="bg-background border shadow-2xl animate-in fade-in zoom-in-95 duration-150">
               <CardHeader className="relative">
                 <CardTitle>Task Details</CardTitle>
 
@@ -717,10 +707,10 @@ useEffect(() => {
                     placeholder="Add notes..."
                     className="mt-1 min-h-[140px]"
                     onKeyDown={(e) => {
-  if (e.ctrlKey && e.key === "Enter") {
-    saveTaskDetails();
-  }
-}}
+                      if (e.ctrlKey && e.key === "Enter") {
+                        saveTaskDetails();
+                      }
+                    }}
                   />
                 </div>
 
@@ -739,146 +729,87 @@ useEffect(() => {
                   </select>
                 </div>
                 <div className="space-y-3">
+                  <label className="text-sm text-muted-foreground">
+                    Repeat
+                  </label>
 
-<label className="text-sm text-muted-foreground">
-Repeat
-</label>
-
-
-<select
-value={
- detailsRecurring
- ? detailsRecurrenceType
- : "none"
-}
-onChange={(e)=>{
-
-if(e.target.value==="none"){
- setDetailsRecurring(false);
-}
-else{
- setDetailsRecurring(true);
- setDetailsRecurrenceType(e.target.value);
-}
-
-}}
-
-className="
+                  <select
+                    value={detailsRecurring ? detailsRecurrenceType : "none"}
+                    onChange={(e) => {
+                      if (e.target.value === "none") {
+                        setDetailsRecurring(false);
+                      } else {
+                        setDetailsRecurring(true);
+                        setDetailsRecurrenceType(e.target.value);
+                      }
+                    }}
+                    className="
 w-full rounded-md border px-3 py-2
 "
->
+                  >
+                    <option value="none">Does not repeat</option>
 
-<option value="none">
-Does not repeat
-</option>
+                    <option value="daily">Daily</option>
 
-<option value="daily">
-Daily
-</option>
+                    <option value="weekly">Weekly</option>
 
-<option value="weekly">
-Weekly
-</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
 
-<option value="monthly">
-Monthly
-</option>
+                  {detailsRecurring && (
+                    <>
+                      <div>
+                        <label>Every</label>
 
-</select>
-
-
-{detailsRecurring && (
-
-<>
-
-<div>
-
-<label>
-Every
-</label>
-
-<input
-type="number"
-min="1"
-value={detailsRecurrenceInterval}
-
-onChange={(e)=>
-setDetailsRecurrenceInterval(
-Number(e.target.value)
-)
-}
-
-className="
+                        <input
+                          type="number"
+                          min="1"
+                          value={detailsRecurrenceInterval}
+                          onChange={(e) =>
+                            setDetailsRecurrenceInterval(Number(e.target.value))
+                          }
+                          className="
 w-full rounded-md border px-3 py-2
 "
-/>
+                        />
 
-<span className="text-xs text-muted-foreground">
-Example: every 2 weeks
-</span>
+                        <span className="text-xs text-muted-foreground">
+                          Example: every 2 weeks
+                        </span>
+                      </div>
 
-</div>
+                      <div>
+                        <label>Number of repeats</label>
 
-
-<div>
-
-<label>
-Number of repeats
-</label>
-
-<input
-type="number"
-
-value={
-detailsRecurrenceCount || ""
-}
-
-onChange={(e)=>
-setDetailsRecurrenceCount(
-Number(e.target.value)
-)
-}
-
-className="
+                        <input
+                          type="number"
+                          value={detailsRecurrenceCount || ""}
+                          onChange={(e) =>
+                            setDetailsRecurrenceCount(Number(e.target.value))
+                          }
+                          className="
 w-full rounded-md border px-3 py-2
 "
-/>
+                        />
+                      </div>
 
-</div>
+                      <div>
+                        <label>End date (optional)</label>
 
-
-<div>
-
-<label>
-End date (optional)
-</label>
-
-
-<input
-type="date"
-
-value={detailsRecurrenceEndDate}
-
-onChange={(e)=>
-setDetailsRecurrenceEndDate(
-e.target.value
-)
-}
-
-className="
+                        <input
+                          type="date"
+                          value={detailsRecurrenceEndDate}
+                          onChange={(e) =>
+                            setDetailsRecurrenceEndDate(e.target.value)
+                          }
+                          className="
 w-full rounded-md border px-3 py-2
 "
-/>
-
-
-</div>
-
-
-</>
-
-)}
-
-</div>
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
 
                 <div className="text-sm text-muted-foreground">
                   Status:{" "}
