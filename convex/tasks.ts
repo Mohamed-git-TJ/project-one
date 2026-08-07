@@ -132,22 +132,15 @@ export const updateTaskDetails = mutation({
     priority: v.optional(v.string()),
     recurring: v.optional(v.boolean()),
 
-recurrenceType:
-v.optional(v.string()),
+    recurrenceType: v.optional(v.string()),
 
-recurrenceInterval:
-v.optional(v.number()),
+    recurrenceInterval: v.optional(v.number()),
 
-recurrenceCount:
-v.optional(v.number()),
+    recurrenceCount: v.optional(v.number()),
 
-recurrenceCreated: v.optional(v.number()),
+    recurrenceDays: v.optional(v.array(v.string())),
 
-recurrenceDays:
-v.optional(v.array(v.string())),
-
-recurrenceEndDate:
-v.optional(v.string()),
+    recurrenceEndDate: v.optional(v.string()),
   },
 
   handler: async (ctx, args) => {
@@ -167,30 +160,23 @@ v.optional(v.string()),
       throw new Error("Unauthorized");
     }
 
-    await ctx.db.patch(args.id,{
- title: args.title,
- notes: args.notes,
- priority: args.priority,
+    await ctx.db.patch(args.id, {
+      title: args.title,
+      notes: args.notes,
+      priority: args.priority,
 
+      recurring: args.recurring,
 
- recurring: args.recurring,
+      recurrenceType: args.recurrenceType,
 
- recurrenceType:
- args.recurrenceType,
+      recurrenceInterval: args.recurrenceInterval,
 
- recurrenceInterval:
- args.recurrenceInterval,
+      recurrenceCount: args.recurrenceCount,
 
- recurrenceCount:
- args.recurrenceCount,
+      recurrenceDays: args.recurrenceDays,
 
- recurrenceDays:
- args.recurrenceDays,
-
- recurrenceEndDate:
- args.recurrenceEndDate,
-
-});
+      recurrenceEndDate: args.recurrenceEndDate,
+    });
   },
 });
 
@@ -201,100 +187,153 @@ export const toggleComplete = mutation({
   },
 
   handler: async (ctx, args) => {
-
     const identity = await ctx.auth.getUserIdentity();
 
     if (!identity) {
       throw new Error("Not authenticated");
     }
 
-
     const task = await ctx.db.get(args.id);
-
 
     if (!task) {
       throw new Error("Task not found");
     }
 
-
+    // Make sure the user owns this task
     if (task.userId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
-
     const completing = !task.completed;
 
+    // ------------------------------------------------
+    // UNCOMPLETE TASK
+    // ------------------------------------------------
 
-    await ctx.db.patch(args.id,{
-      completed: completing,
-      completedAt: completing
-        ? Date.now()
-        : undefined,
-    });
-
-
-
-    // ==========================
-    // CREATE NEXT RECURRING TASK
-    // ==========================
-
-    if (
-      completing &&
-      task.recurring &&
-      task.recurrenceType
-    ) {
-
-
-      const nextDate = calculateNextOccurrence(
-        task.date ?? new Date().toISOString(),
-        task.recurrenceType,
-        task.recurrenceInterval ?? 1
-      );
-
-
-      await ctx.db.insert("tasks",{
-
-        userId: task.userId,
-
-        title: task.title,
-
-        status: "scheduled",
-
-        date: nextDate,
-
-        completed:false,
-
-        notes:task.notes,
-
-        priority:task.priority,
-
-
-        recurring:true,
-
-        recurrenceType:
-          task.recurrenceType,
-
-        recurrenceInterval:
-          task.recurrenceInterval,
-
-
-        recurrenceCount:
-          task.recurrenceCount,
-
-
-        recurrenceDays:
-          task.recurrenceDays,
-
-
-        recurrenceEndDate:
-          task.recurrenceEndDate,
-
-
-        createdAt:Date.now(),
+    if (!completing) {
+      await ctx.db.patch(args.id, {
+        completed: false,
+        completedAt: undefined,
       });
 
+      return;
     }
 
+    // ------------------------------------------------
+    // NORMAL / NON-RECURRING TASK
+    // ------------------------------------------------
+
+    if (!task.recurring || !task.recurrenceType) {
+      await ctx.db.patch(args.id, {
+        completed: true,
+        completedAt: Date.now(),
+      });
+
+      return;
+    }
+
+    // ------------------------------------------------
+    // CHECK REPEAT COUNT
+    // ------------------------------------------------
+
+    // recurrenceCount = number of future occurrences remaining
+    //
+    // Example:
+    // recurrenceCount = 3
+    //
+    // Complete current task
+    // → create next task (2 remaining)
+    // → complete next task
+    // → create next task (1 remaining)
+    // → complete next task
+    // → create next task (0 remaining)
+    // → complete final task
+    // → stop
+
+    if (task.recurrenceCount !== undefined && task.recurrenceCount <= 0) {
+      await ctx.db.patch(args.id, {
+        completed: true,
+        completedAt: Date.now(),
+      });
+
+      return;
+    }
+
+    // ------------------------------------------------
+    // CALCULATE NEXT OCCURRENCE
+    // ------------------------------------------------
+
+    const nextDate = calculateNextOccurrence(
+      task.date ?? new Date().toISOString(),
+      task.recurrenceType,
+      task.recurrenceInterval ?? 1,
+    );
+
+    // ------------------------------------------------
+    // CHECK END DATE
+    // ------------------------------------------------
+
+    if (
+      task.recurrenceEndDate &&
+      new Date(nextDate) > new Date(`${task.recurrenceEndDate}T23:59:59.999Z`)
+    ) {
+      await ctx.db.patch(args.id, {
+        completed: true,
+        completedAt: Date.now(),
+      });
+
+      return;
+    }
+
+    // ------------------------------------------------
+    // CALCULATE REMAINING REPEATS
+    // ------------------------------------------------
+
+    const remainingRepeats =
+      task.recurrenceCount !== undefined ? task.recurrenceCount - 1 : undefined;
+
+    // ------------------------------------------------
+    // CREATE NEXT OCCURRENCE
+    // ------------------------------------------------
+
+    await ctx.db.insert("tasks", {
+      userId: task.userId,
+
+      title: task.title,
+
+      status: "scheduled",
+
+      date: nextDate,
+
+      completed: false,
+
+      notes: task.notes,
+
+      priority: task.priority,
+
+      recurring: true,
+
+      recurrenceType: task.recurrenceType,
+
+      recurrenceInterval: task.recurrenceInterval,
+
+      recurrenceCount: remainingRepeats,
+
+      recurrenceDays: task.recurrenceDays,
+
+      recurrenceEndDate: task.recurrenceEndDate,
+
+      createdAt: Date.now(),
+    });
+
+    // ------------------------------------------------
+    // MARK CURRENT TASK AS COMPLETED
+    // ------------------------------------------------
+
+    await ctx.db.patch(args.id, {
+      completed: true,
+      completedAt: Date.now(),
+    });
   },
 });
 

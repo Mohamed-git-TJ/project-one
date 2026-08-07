@@ -129,6 +129,14 @@ export default function InboxCard() {
     if (!selectedTask) return;
     if (!detailsTitle.trim()) return;
 
+    if (
+      detailsRecurring &&
+      detailsRecurrenceCount !== undefined &&
+      detailsRecurrenceCount < 1
+    ) {
+      return;
+    }
+
     await updateTaskDetails({
       id: selectedTask._id,
       title: detailsTitle,
@@ -758,19 +766,22 @@ w-full rounded-md border px-3 py-2
 
                   {detailsRecurring && (
                     <>
+                      {/* EVERY */}
                       <div>
-                        <label>Every</label>
+                        <label className="text-sm text-muted-foreground">
+                          Every
+                        </label>
 
                         <input
                           type="number"
                           min="1"
                           value={detailsRecurrenceInterval}
                           onChange={(e) =>
-                            setDetailsRecurrenceInterval(Number(e.target.value))
+                            setDetailsRecurrenceInterval(
+                              Math.max(1, Number(e.target.value)),
+                            )
                           }
-                          className="
-w-full rounded-md border px-3 py-2
-"
+                          className="w-full rounded-md border px-3 py-2"
                         />
 
                         <span className="text-xs text-muted-foreground">
@@ -778,23 +789,34 @@ w-full rounded-md border px-3 py-2
                         </span>
                       </div>
 
+                      {/* NUMBER OF REPEATS */}
                       <div>
-                        <label>Number of repeats</label>
+                        <label className="text-sm text-muted-foreground">
+                          Number of repeats
+                        </label>
 
                         <input
                           type="number"
-                          value={detailsRecurrenceCount || ""}
-                          onChange={(e) =>
-                            setDetailsRecurrenceCount(Number(e.target.value))
-                          }
-                          className="
-w-full rounded-md border px-3 py-2
-"
+                          min="1"
+                          value={detailsRecurrenceCount ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value;
+
+                            setDetailsRecurrenceCount(
+                              value === ""
+                                ? undefined
+                                : Math.max(1, Number(value)),
+                            );
+                          }}
+                          className="w-full rounded-md border px-3 py-2"
                         />
                       </div>
 
+                      {/* END DATE */}
                       <div>
-                        <label>End date (optional)</label>
+                        <label className="text-sm text-muted-foreground">
+                          End date (optional)
+                        </label>
 
                         <input
                           type="date"
@@ -802,9 +824,7 @@ w-full rounded-md border px-3 py-2
                           onChange={(e) =>
                             setDetailsRecurrenceEndDate(e.target.value)
                           }
-                          className="
-w-full rounded-md border px-3 py-2
-"
+                          className="w-full rounded-md border px-3 py-2"
                         />
                       </div>
                     </>
