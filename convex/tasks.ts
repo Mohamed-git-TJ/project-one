@@ -141,6 +141,8 @@ export const updateTaskDetails = mutation({
     recurrenceDays: v.optional(v.array(v.string())),
 
     recurrenceEndDate: v.optional(v.string()),
+
+    projectId: v.optional(v.id("projects")),
   },
 
   handler: async (ctx, args) => {
@@ -176,6 +178,7 @@ export const updateTaskDetails = mutation({
       recurrenceDays: args.recurrenceDays,
 
       recurrenceEndDate: args.recurrenceEndDate,
+      projectId: args.projectId,
     });
   },
 });
@@ -322,6 +325,8 @@ export const toggleComplete = mutation({
       recurrenceDays: task.recurrenceDays,
 
       recurrenceEndDate: task.recurrenceEndDate,
+
+      projectId: task.projectId,
 
       createdAt: Date.now(),
     });

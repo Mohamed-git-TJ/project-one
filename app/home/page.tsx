@@ -53,12 +53,19 @@ export default function InboxCard() {
     recurrenceDays?: string[];
 
     recurrenceEndDate?: string;
+
+    projectId?: Id<"projects">;
   };
 
   const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
+  const projects = useQuery(api.projects.getProjects) || [];
+  const [selectedProjectId, setSelectedProjectId] =
+    useState<Id<"projects"> | null>(null);
   const createTask = useMutation(api.tasks.createTask);
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTaskMutation = useMutation(api.tasks.deleteTask);
+  const createProject = useMutation(api.projects.createProject);
+  const [projectInput, setProjectInput] = useState("");
   const toggleComplete = useMutation(api.tasks.toggleComplete);
   const editTask = useMutation(api.tasks.editTask);
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
@@ -112,6 +119,7 @@ export default function InboxCard() {
     setDetailsTitle(task.title);
     setDetailsNotes(task.notes || "");
     setDetailsPriority(task.priority || "medium");
+    setDetailsProjectId(task.projectId);
     setDetailsRecurring(task.recurring || false);
 
     setDetailsRecurrenceType(task.recurrenceType || "weekly");
@@ -142,6 +150,7 @@ export default function InboxCard() {
       title: detailsTitle,
       notes: detailsNotes,
       priority: detailsPriority,
+      projectId: detailsProjectId,
 
       recurring: detailsRecurring,
 
@@ -189,6 +198,9 @@ export default function InboxCard() {
   const [detailsTitle, setDetailsTitle] = useState("");
   const [detailsNotes, setDetailsNotes] = useState("");
   const [detailsPriority, setDetailsPriority] = useState("medium");
+  const [detailsProjectId, setDetailsProjectId] = useState<
+    Id<"projects"> | undefined
+  >();
   const [detailsRecurring, setDetailsRecurring] = useState(false);
 
   const [detailsRecurrenceType, setDetailsRecurrenceType] = useState("weekly");
@@ -249,9 +261,16 @@ export default function InboxCard() {
     };
   }, [selectedTask]);
 
-  const inboxItems = items.filter((item) => item.status === "inbox");
+  const visibleItems =
+    selectedProjectId === null
+      ? items
+      : items.filter((item) => item.projectId === selectedProjectId);
 
-  const incubatorItems = items.filter((item) => item.status === "incubator");
+  const inboxItems = visibleItems.filter((item) => item.status === "inbox");
+
+  const incubatorItems = visibleItems.filter(
+    (item) => item.status === "incubator",
+  );
 
   return (
     <DndContext
@@ -663,9 +682,101 @@ export default function InboxCard() {
             </CardContent>
           </Card>
         </div>
+        <Card className="mt-8 border border-zinc-800 bg-zinc-950/80 shadow-2xl">
+          <CardHeader>
+            <CardTitle className="text-xl tracking-wide">PROJECTS</CardTitle>
+
+            {selectedProjectId && (
+              <div className="text-sm text-muted-foreground">
+                Showing tasks for{" "}
+                <span className="font-medium text-foreground">
+                  {
+                    projects.find(
+                      (project) => project._id === selectedProjectId,
+                    )?.name
+                  }
+                </span>
+              </div>
+            )}
+          </CardHeader>
+
+          <CardContent>
+            <div className="flex gap-2">
+              <input
+                value={projectInput}
+                onChange={(e) => setProjectInput(e.target.value)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter" && projectInput.trim()) {
+                    await createProject({
+                      name: projectInput.trim(),
+                    });
+
+                    setProjectInput("");
+                  }
+                }}
+                placeholder="Create a project..."
+                className="flex-1 rounded-md border bg-background px-3 py-2 outline-none"
+              />
+
+              <button
+                onClick={async () => {
+                  if (!projectInput.trim()) return;
+
+                  await createProject({
+                    name: projectInput.trim(),
+                  });
+
+                  setProjectInput("");
+                }}
+                className="rounded-md bg-zinc-100 px-4 py-2 text-zinc-950 hover:bg-zinc-200"
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {/* ALL TASKS BUTTON */}
+              <button
+                onClick={() => setSelectedProjectId(null)}
+                className={`rounded-lg border px-3 py-2 transition ${
+                  selectedProjectId === null
+                    ? "border-zinc-500 bg-zinc-100 text-zinc-950"
+                    : "border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
+                }`}
+              >
+                All Tasks
+              </button>
+
+              {/* PROJECT BUTTONS */}
+              {projects.map((project) => {
+                const projectTaskCount = items.filter(
+                  (item) => item.projectId === project._id,
+                ).length;
+
+                return (
+                  <button
+                    key={project._id}
+                    onClick={() => setSelectedProjectId(project._id)}
+                    className={`rounded-lg border px-3 py-2 transition ${
+                      selectedProjectId === project._id
+                        ? "border-zinc-500 bg-zinc-100 text-zinc-950"
+                        : "border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
+                    }`}
+                  >
+                    {project.name}
+
+                    <span className="ml-2 text-xs opacity-60">
+                      {projectTaskCount}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
         <div className="mt-8">
           <WeeklyCalendar
-            items={items}
+            items={visibleItems}
             moveItem={moveItem}
             completeItem={completeItem}
             editingId={editingId}
@@ -734,6 +845,31 @@ export default function InboxCard() {
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">
+                    Project
+                  </label>
+
+                  <select
+                    value={detailsProjectId ?? ""}
+                    onChange={(e) => {
+                      setDetailsProjectId(
+                        e.target.value
+                          ? (e.target.value as Id<"projects">)
+                          : undefined,
+                      );
+                    }}
+                    className="mt-1 w-full rounded-md border bg-background px-3 py-2"
+                  >
+                    <option value="">No project</option>
+
+                    {projects.map((project) => (
+                      <option key={project._id} value={project._id}>
+                        {project.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
                 <div className="space-y-3">
