@@ -25,21 +25,19 @@ export default function DraggableItem({
         transform: CSS.Translate.toString(transform),
         opacity: isDragging ? 0.3 : 1,
       }}
-      className={`flex items-center gap-2 w-full transition-all duration-150 ${
+      className={`flex items-center gap-2 w-full min-w-0 max-w-full overflow-hidden transition-all duration-150 ${
         isDragging ? "scale-95" : "scale-100"
       }`}
     >
-      {/* DRAG HANDLE */}
       <button
         {...listeners}
         {...attributes}
-        className="cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 transition text-xs"
+        className="shrink-0 cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 transition text-xs"
       >
         ⋮⋮
       </button>
 
-      {/* CONTENT */}
-      <div className="flex-1 min-w-0">{children}</div>
+      <div className="flex-1 min-w-0 w-0 overflow-hidden">{children}</div>
     </div>
   );
 }

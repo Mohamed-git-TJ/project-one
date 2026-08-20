@@ -442,7 +442,7 @@ export default function InboxCard() {
                       setSelectedTask(item);
                       setHighlightedTask(item._id);
                     }}
-                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
+                    className={`group flex min-w-0 w-full max-w-full items-center justify-between gap-3 overflow-hidden border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
@@ -468,14 +468,14 @@ export default function InboxCard() {
                       <TooltipProvider delayDuration={200}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div>
+                            <div className="min-w-0 flex-1 w-0 overflow-hidden">
                               <DraggableItem item={item}>
                                 <div
                                   onDoubleClick={() => {
                                     setEditingId(item._id);
                                     setEditingText(item.title);
                                   }}
-                                  className="w-full truncate"
+                                  className="block w-full min-w-0 truncate overflow-hidden whitespace-nowrap"
                                 >
                                   {item.title}
                                 </div>
@@ -485,7 +485,7 @@ export default function InboxCard() {
 
                           <TooltipContent
                             side="top"
-                            className="max-w-[260px] text-sm leading-relaxed animate-in fade-in zoom-in-95"
+                            className="w-auto max-w-[320px] whitespace-normal break-words text-sm leading-relaxed animate-in fade-in zoom-in-95"
                           >
                             {item.title}
                           </TooltipContent>
@@ -493,7 +493,7 @@ export default function InboxCard() {
                       </TooltipProvider>
                     )}
 
-                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
+                    <div className="flex shrink-0 gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -605,7 +605,7 @@ export default function InboxCard() {
                       setSelectedTask(item);
                       setHighlightedTask(item._id);
                     }}
-                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
+                    className={`group flex min-w-0 w-full max-w-full items-center justify-between gap-3 overflow-hidden border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
@@ -631,14 +631,14 @@ export default function InboxCard() {
                       <TooltipProvider delayDuration={200}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div>
+                            <div className="min-w-0 flex-1 w-0 overflow-hidden">
                               <DraggableItem item={item}>
                                 <div
                                   onDoubleClick={() => {
                                     setEditingId(item._id);
                                     setEditingText(item.title);
                                   }}
-                                  className="w-full truncate"
+                                  className="block w-full min-w-0 truncate overflow-hidden whitespace-nowrap"
                                 >
                                   {item.title}
                                 </div>
@@ -648,7 +648,7 @@ export default function InboxCard() {
 
                           <TooltipContent
                             side="top"
-                            className="max-w-[260px] text-sm leading-relaxed animate-in fade-in zoom-in-95"
+                            className="w-auto max-w-[320px] whitespace-normal break-words text-sm leading-relaxed animate-in fade-in zoom-in-95"
                           >
                             {item.title}
                           </TooltipContent>
@@ -656,7 +656,7 @@ export default function InboxCard() {
                       </TooltipProvider>
                     )}
 
-                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
+                    <div className="flex shrink-0 gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

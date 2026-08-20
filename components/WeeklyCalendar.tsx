@@ -345,7 +345,7 @@ export default function WeeklyCalendar({
                         className="flex-1 min-w-0 bg-background outline-none border rounded px-1 py-0.5 text-xs"
                       />
                     ) : (
-                      <div className="flex-1 min-w-0 relative">
+                      <div className="flex-1 min-w-0 w-0 relative overflow-hidden">
                         <TooltipProvider delayDuration={200}>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -356,7 +356,7 @@ export default function WeeklyCalendar({
                                       setEditingId(item._id);
                                       setEditingText(item.title);
                                     }}
-                                    className={`block text-left leading-5 ${
+                                    className={`block w-full min-w-0 max-w-full overflow-hidden text-left leading-5 ${
                                       isExpanded
                                         ? "whitespace-pre-wrap break-words"
                                         : "truncate whitespace-nowrap pr-6"
