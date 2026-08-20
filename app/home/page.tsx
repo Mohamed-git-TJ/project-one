@@ -65,7 +65,13 @@ export default function InboxCard() {
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTaskMutation = useMutation(api.tasks.deleteTask);
   const createProject = useMutation(api.projects.createProject);
+  const updateProject = useMutation(api.projects.updateProject);
+  const deleteProject = useMutation(api.projects.deleteProject);
   const [projectInput, setProjectInput] = useState("");
+  const [editingProjectId, setEditingProjectId] =
+    useState<Id<"projects"> | null>(null);
+
+  const [editingProjectName, setEditingProjectName] = useState("");
   const toggleComplete = useMutation(api.tasks.toggleComplete);
   const editTask = useMutation(api.tasks.editTask);
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
@@ -217,7 +223,14 @@ export default function InboxCard() {
 
   const [detailsRecurrenceEndDate, setDetailsRecurrenceEndDate] = useState("");
   const [focusInboxInput, setFocusInboxInput] = useState(false);
-
+  useEffect(() => {
+    if (
+      selectedProjectId &&
+      !projects.some((project) => project._id === selectedProjectId)
+    ) {
+      setSelectedProjectId(null);
+    }
+  }, [projects, selectedProjectId]);
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore shortcuts while typing
@@ -687,8 +700,9 @@ export default function InboxCard() {
             <CardTitle className="text-xl tracking-wide">PROJECTS</CardTitle>
 
             {selectedProjectId && (
-              <div className="text-sm text-muted-foreground">
-                Showing tasks for{" "}
+              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Showing:</span>
+
                 <span className="font-medium text-foreground">
                   {
                     projects.find(
@@ -696,6 +710,13 @@ export default function InboxCard() {
                     )?.name
                   }
                 </span>
+
+                <button
+                  onClick={() => setSelectedProjectId(null)}
+                  className="text-xs underline hover:text-foreground"
+                >
+                  Clear filter
+                </button>
               </div>
             )}
           </CardHeader>
@@ -753,22 +774,94 @@ export default function InboxCard() {
                   (item) => item.projectId === project._id,
                 ).length;
 
+                const isSelected = selectedProjectId === project._id;
+
+                const isEditing = editingProjectId === project._id;
+
                 return (
-                  <button
+                  <div
                     key={project._id}
-                    onClick={() => setSelectedProjectId(project._id)}
-                    className={`rounded-lg border px-3 py-2 transition ${
-                      selectedProjectId === project._id
+                    className={`flex items-center rounded-lg border transition ${
+                      isSelected
                         ? "border-zinc-500 bg-zinc-100 text-zinc-950"
-                        : "border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
+                        : "border-zinc-800 bg-zinc-900"
                     }`}
                   >
-                    {project.name}
+                    {isEditing ? (
+                      <input
+                        autoFocus
+                        value={editingProjectName}
+                        onChange={(e) => setEditingProjectName(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === "Enter") {
+                            if (!editingProjectName.trim()) return;
 
-                    <span className="ml-2 text-xs opacity-60">
-                      {projectTaskCount}
-                    </span>
-                  </button>
+                            await updateProject({
+                              id: project._id,
+                              name: editingProjectName.trim(),
+                            });
+
+                            setEditingProjectId(null);
+                            setEditingProjectName("");
+                          }
+
+                          if (e.key === "Escape") {
+                            setEditingProjectId(null);
+                            setEditingProjectName("");
+                          }
+                        }}
+                        className="w-40 rounded-md border bg-background px-2 py-1 text-sm text-foreground outline-none"
+                      />
+                    ) : (
+                      <button
+                        onClick={() => setSelectedProjectId(project._id)}
+                        className="px-3 py-2 hover:opacity-80"
+                      >
+                        {project.name}
+
+                        <span className="ml-2 text-xs opacity-60">
+                          {projectTaskCount}
+                        </span>
+                      </button>
+                    )}
+
+                    {!isEditing && (
+                      <>
+                        <button
+                          onClick={() => {
+                            setEditingProjectId(project._id);
+                            setEditingProjectName(project.name);
+                          }}
+                          className="px-2 py-2 text-xs opacity-60 hover:opacity-100"
+                          title="Rename project"
+                        >
+                          ✎
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            const confirmed = window.confirm(
+                              `Delete "${project.name}"?\n\nYour tasks will not be deleted. They will simply become unassigned.`,
+                            );
+
+                            if (!confirmed) return;
+
+                            await deleteProject({
+                              id: project._id,
+                            });
+
+                            if (selectedProjectId === project._id) {
+                              setSelectedProjectId(null);
+                            }
+                          }}
+                          className="px-2 py-2 text-red-500 hover:text-red-400"
+                          title="Delete project"
+                        >
+                          ✕
+                        </button>
+                      </>
+                    )}
+                  </div>
                 );
               })}
             </div>

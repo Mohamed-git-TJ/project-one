@@ -69,6 +69,7 @@ export const updateTask = mutation({
     id: v.id("tasks"),
     status: v.string(),
     date: v.optional(v.string()),
+    projectId: v.optional(v.id("projects")),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -87,6 +88,19 @@ export const updateTask = mutation({
     if (task.userId !== identity.subject) {
       throw new Error("Unauthorized");
     }
+
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId);
+
+      if (!project) {
+        throw new Error("Project not found");
+      }
+
+      if (project.userId !== identity.subject) {
+        throw new Error("Unauthorized project");
+      }
+    }
+
     await ctx.db.patch(args.id, {
       status: args.status,
       date: args.date,
@@ -160,6 +174,18 @@ export const updateTaskDetails = mutation({
 
     if (task.userId !== identity.subject) {
       throw new Error("Unauthorized");
+    }
+
+    if (args.projectId) {
+      const project = await ctx.db.get(args.projectId);
+
+      if (!project) {
+        throw new Error("Project not found");
+      }
+
+      if (project.userId !== identity.subject) {
+        throw new Error("Unauthorized project");
+      }
     }
 
     await ctx.db.patch(args.id, {
