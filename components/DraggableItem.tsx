@@ -14,6 +14,7 @@ export default function DraggableItem({
     useDraggable({
       id: item._id,
       data: {
+        type: "task",
         item,
       },
     });
@@ -32,12 +33,14 @@ export default function DraggableItem({
       <button
         {...listeners}
         {...attributes}
+        onClick={(e) => e.stopPropagation()}
         className="shrink-0 cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 transition text-xs"
+        aria-label="Drag task"
       >
         ⋮⋮
       </button>
 
-      <div className="flex-1 min-w-0 w-0 overflow-hidden">{children}</div>
+      <div className="flex-1 min-w-0 overflow-hidden">{children}</div>
     </div>
   );
 }

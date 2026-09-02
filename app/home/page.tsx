@@ -3,12 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { AspectRatio } from "@/components/ui/aspect-ratio";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
 import { useDroppable } from "@dnd-kit/core";
 import DraggableItem from "@/components/DraggableItem";
 import { DndContext, DragOverlay } from "@dnd-kit/core";
-import { closestCenter } from "@dnd-kit/core";
 import { pointerWithin, rectIntersection } from "@dnd-kit/core";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -26,32 +24,20 @@ export default function InboxCard() {
 
   type Item = {
     _id: Id<"tasks">;
-
     title: string;
-
     status: Status;
-
     date?: string;
-
     completed?: boolean;
-
     completedAt?: number;
-
     notes?: string;
-
     priority?: string;
 
     // ⭐ Recurring task fields
     recurring?: boolean;
-
     recurrenceType?: string;
-
     recurrenceInterval?: number;
-
     recurrenceCount?: number;
-
     recurrenceDays?: string[];
-
     recurrenceEndDate?: string;
 
     projectId?: Id<"projects">;
@@ -59,19 +45,11 @@ export default function InboxCard() {
 
   const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
   const projects = useQuery(api.projects.getProjects) || [];
-  const [selectedProjectId, setSelectedProjectId] =
-    useState<Id<"projects"> | null>(null);
   const createTask = useMutation(api.tasks.createTask);
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTaskMutation = useMutation(api.tasks.deleteTask);
   const createProject = useMutation(api.projects.createProject);
-  const updateProject = useMutation(api.projects.updateProject);
-  const deleteProject = useMutation(api.projects.deleteProject);
   const [projectInput, setProjectInput] = useState("");
-  const [editingProjectId, setEditingProjectId] =
-    useState<Id<"projects"> | null>(null);
-
-  const [editingProjectName, setEditingProjectName] = useState("");
   const toggleComplete = useMutation(api.tasks.toggleComplete);
   const editTask = useMutation(api.tasks.editTask);
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
@@ -103,9 +81,11 @@ export default function InboxCard() {
     },
     [deleteTaskMutation],
   );
+
   const completeItem = async (id: Id<"tasks">) => {
     await toggleComplete({ id });
   };
+
   const saveEdit = async () => {
     if (!editingId) return;
 
@@ -184,6 +164,7 @@ export default function InboxCard() {
   const { setNodeRef: setInboxRef, isOver: isInboxOver } = useDroppable({
     id: "inbox",
   });
+
   const { setNodeRef: setIncubatorRef, isOver: isIncubatorOver } = useDroppable(
     {
       id: "incubator",
@@ -204,9 +185,11 @@ export default function InboxCard() {
   const [detailsTitle, setDetailsTitle] = useState("");
   const [detailsNotes, setDetailsNotes] = useState("");
   const [detailsPriority, setDetailsPriority] = useState("medium");
+
   const [detailsProjectId, setDetailsProjectId] = useState<
     Id<"projects"> | undefined
   >();
+
   const [detailsRecurring, setDetailsRecurring] = useState(false);
 
   const [detailsRecurrenceType, setDetailsRecurrenceType] = useState("weekly");
@@ -223,14 +206,7 @@ export default function InboxCard() {
 
   const [detailsRecurrenceEndDate, setDetailsRecurrenceEndDate] = useState("");
   const [focusInboxInput, setFocusInboxInput] = useState(false);
-  useEffect(() => {
-    if (
-      selectedProjectId &&
-      !projects.some((project) => project._id === selectedProjectId)
-    ) {
-      setSelectedProjectId(null);
-    }
-  }, [projects, selectedProjectId]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Ignore shortcuts while typing
@@ -258,6 +234,7 @@ export default function InboxCard() {
         setSelectedTask(null);
         setEditingId(null);
       }
+
       if (e.key === "Delete") {
         if (selectedTask) {
           deleteItem(selectedTask._id);
@@ -274,25 +251,30 @@ export default function InboxCard() {
     };
   }, [selectedTask]);
 
-  const visibleItems =
-    selectedProjectId === null
-      ? items
-      : items.filter((item) => item.projectId === selectedProjectId);
+  const inboxItems = items.filter((item) => item.status === "inbox");
 
-  const inboxItems = visibleItems.filter((item) => item.status === "inbox");
-
-  const incubatorItems = visibleItems.filter(
-    (item) => item.status === "incubator",
-  );
+  const incubatorItems = items.filter((item) => item.status === "incubator");
 
   return (
     <DndContext
       collisionDetection={(args) => {
         const pointerCollisions = pointerWithin(args);
 
-        return pointerCollisions.length > 0
-          ? pointerCollisions
-          : rectIntersection(args);
+        const inboxCollision = pointerCollisions.find(
+          (collision) => collision.id.toString() === "inbox",
+        );
+
+        if (inboxCollision) return [inboxCollision];
+
+        const incubatorCollision = pointerCollisions.find(
+          (collision) => collision.id.toString() === "incubator",
+        );
+
+        if (incubatorCollision) return [incubatorCollision];
+
+        if (pointerCollisions.length > 0) return pointerCollisions;
+
+        return rectIntersection(args);
       }}
       onDragStart={(event) => {
         const dragged = items.find((item) => item._id === event.active.id);
@@ -310,11 +292,12 @@ export default function InboxCard() {
 
         const itemId = active.id as Id<"tasks">;
         const overId = over.id.toString();
+        const dropData = over.data.current;
+        const dropType = dropData?.type;
+
         const draggedItem = items.find((item) => item._id === itemId);
 
-        // 📅 calendar
-        const isDate = !isNaN(Date.parse(overId));
-        if (overId === "next-week") {
+        if (dropType === "next-week" || overId === "next-week") {
           if (!draggedItem?.date) return;
 
           const nextWeekDate = new Date(draggedItem.date);
@@ -323,7 +306,8 @@ export default function InboxCard() {
           moveItem(itemId, "scheduled", nextWeekDate.toISOString());
           return;
         }
-        if (overId === "previous-week") {
+
+        if (dropType === "previous-week" || overId === "previous-week") {
           if (!draggedItem?.date) return;
 
           const previousWeekDate = new Date(draggedItem.date);
@@ -333,15 +317,15 @@ export default function InboxCard() {
           return;
         }
 
-        if (overId === "today") {
+        if (dropType === "today" || overId === "today") {
           const today = new Date();
 
           moveItem(itemId, "scheduled", today.toISOString());
           return;
         }
 
-        if (isDate) {
-          moveItem(itemId, "scheduled", overId);
+        if (dropType === "calendar-day" && dropData?.date) {
+          moveItem(itemId, "scheduled", dropData.date);
           return;
         }
 
@@ -364,16 +348,20 @@ export default function InboxCard() {
           onClick={() => setExpanded(null)}
         />
       )}
-      {/* ✅ YOUR UI GOES HERE */}
+
       <div className="min-h-screen w-full max-w-7xl mx-auto px-6 pt-10 text-foreground">
         <div className="grid md:grid-cols-2 gap-6 items-stretch">
+          {/* ==================== INBOX ==================== */}
           <Card
+            ref={setInboxRef}
             className={`flex flex-col border border-zinc-800 bg-zinc-950/80 shadow-2xl transition-all ${
               expanded === "inbox"
                 ? "fixed inset-10 z-50 bg-zinc-950 border border-zinc-700 shadow-2xl"
                 : "h-[400px]"
-            }`}
-            onClick={() => {
+            } ${isInboxOver ? "ring-2 ring-zinc-300/60" : ""}`}
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest("button")) return;
+
               if (!expanded) setExpanded("inbox");
             }}
           >
@@ -394,7 +382,6 @@ export default function InboxCard() {
             </CardHeader>
 
             <CardContent
-              ref={setInboxRef} // ✅ THIS is the droppable
               className={`space-y-2 min-h-[200px] ${
                 isInboxOver ? "bg-muted/40 rounded-md" : ""
               }`}
@@ -442,7 +429,7 @@ export default function InboxCard() {
                       setSelectedTask(item);
                       setHighlightedTask(item._id);
                     }}
-                    className={`group flex min-w-0 w-full max-w-full items-center justify-between gap-3 overflow-hidden border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
+                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
@@ -468,14 +455,14 @@ export default function InboxCard() {
                       <TooltipProvider delayDuration={200}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="min-w-0 flex-1 w-0 overflow-hidden">
+                            <div className="flex-1 min-w-0">
                               <DraggableItem item={item}>
                                 <div
                                   onDoubleClick={() => {
                                     setEditingId(item._id);
                                     setEditingText(item.title);
                                   }}
-                                  className="block w-full min-w-0 truncate overflow-hidden whitespace-nowrap"
+                                  className="w-full truncate"
                                 >
                                   {item.title}
                                 </div>
@@ -485,7 +472,7 @@ export default function InboxCard() {
 
                           <TooltipContent
                             side="top"
-                            className="w-auto max-w-[320px] whitespace-normal break-words text-sm leading-relaxed animate-in fade-in zoom-in-95"
+                            className="max-w-[260px] text-sm leading-relaxed animate-in fade-in zoom-in-95"
                           >
                             {item.title}
                           </TooltipContent>
@@ -493,7 +480,7 @@ export default function InboxCard() {
                       </TooltipProvider>
                     )}
 
-                    <div className="flex shrink-0 gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
+                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -502,6 +489,7 @@ export default function InboxCard() {
                       >
                         ⓘ
                       </button>
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -510,21 +498,37 @@ export default function InboxCard() {
                       >
                         {item.completed ? "↺" : "✓"}
                       </button>
-                      <button onClick={() => moveItem(item._id, "incubator")}>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveItem(item._id, "incubator");
+                        }}
+                      >
                         → Incubator
                       </button>
+
                       <button
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           moveItem(
                             item._id,
                             "scheduled",
                             new Date().toISOString(),
-                          )
-                        }
+                          );
+                        }}
                       >
                         → Calendar
                       </button>
-                      <button onClick={() => deleteItem(item._id)}>✕</button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteItem(item._id);
+                        }}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -532,13 +536,17 @@ export default function InboxCard() {
             </CardContent>
           </Card>
 
+          {/* ==================== INCUBATOR ==================== */}
           <Card
+            ref={setIncubatorRef}
             className={`flex flex-col border border-zinc-800 bg-zinc-950/80 shadow-2xl transition-all ${
               expanded === "incubator"
                 ? "fixed inset-10 z-50 bg-zinc-950 border border-zinc-700 shadow-2xl"
                 : "h-[400px]"
-            }`}
-            onClick={() => {
+            } ${isIncubatorOver ? "ring-2 ring-zinc-300/60" : ""}`}
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest("button")) return;
+
               if (!expanded) setExpanded("incubator");
             }}
           >
@@ -559,7 +567,6 @@ export default function InboxCard() {
             </CardHeader>
 
             <CardContent
-              ref={setIncubatorRef} // ✅ IMPORTANT FIX
               className={`space-y-2 min-h-[200px] ${
                 isIncubatorOver ? "bg-muted/40 rounded-md" : ""
               }`}
@@ -605,7 +612,7 @@ export default function InboxCard() {
                       setSelectedTask(item);
                       setHighlightedTask(item._id);
                     }}
-                    className={`group flex min-w-0 w-full max-w-full items-center justify-between gap-3 overflow-hidden border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
+                    className={`group flex justify-between items-center border border-zinc-800 bg-zinc-900/70 p-3 rounded-lg transition-all duration-200 hover:bg-zinc-800/80 hover:border-zinc-600 hover:shadow-lg ${
                       item.completed ? "opacity-50 line-through" : ""
                     }`}
                   >
@@ -631,14 +638,14 @@ export default function InboxCard() {
                       <TooltipProvider delayDuration={200}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <div className="min-w-0 flex-1 w-0 overflow-hidden">
+                            <div className="flex-1 min-w-0">
                               <DraggableItem item={item}>
                                 <div
                                   onDoubleClick={() => {
                                     setEditingId(item._id);
                                     setEditingText(item.title);
                                   }}
-                                  className="block w-full min-w-0 truncate overflow-hidden whitespace-nowrap"
+                                  className="w-full truncate"
                                 >
                                   {item.title}
                                 </div>
@@ -648,7 +655,7 @@ export default function InboxCard() {
 
                           <TooltipContent
                             side="top"
-                            className="w-auto max-w-[320px] whitespace-normal break-words text-sm leading-relaxed animate-in fade-in zoom-in-95"
+                            className="max-w-[260px] text-sm leading-relaxed animate-in fade-in zoom-in-95"
                           >
                             {item.title}
                           </TooltipContent>
@@ -656,7 +663,7 @@ export default function InboxCard() {
                       </TooltipProvider>
                     )}
 
-                    <div className="flex shrink-0 gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
+                    <div className="flex gap-2 opacity-70 md:opacity-0 translate-x-0 md:translate-x-2 md:group-hover:translate-x-0 md:group-hover:opacity-100 transition-all duration-200 [&_button]:transition-transform [&_button]:duration-150 [&_button]:hover:scale-110 [&_button]:active:scale-95">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -665,6 +672,7 @@ export default function InboxCard() {
                       >
                         ⓘ
                       </button>
+
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -673,21 +681,37 @@ export default function InboxCard() {
                       >
                         {item.completed ? "↺" : "✓"}
                       </button>
-                      <button onClick={() => moveItem(item._id, "inbox")}>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveItem(item._id, "inbox");
+                        }}
+                      >
                         → Inbox
                       </button>
+
                       <button
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           moveItem(
                             item._id,
                             "scheduled",
                             new Date().toISOString(),
-                          )
-                        }
+                          );
+                        }}
                       >
                         → Calendar
                       </button>
-                      <button onClick={() => deleteItem(item._id)}>✕</button>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteItem(item._id);
+                        }}
+                      >
+                        ✕
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -695,30 +719,11 @@ export default function InboxCard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* ==================== PROJECTS ==================== */}
         <Card className="mt-8 border border-zinc-800 bg-zinc-950/80 shadow-2xl">
           <CardHeader>
             <CardTitle className="text-xl tracking-wide">PROJECTS</CardTitle>
-
-            {selectedProjectId && (
-              <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                <span>Showing:</span>
-
-                <span className="font-medium text-foreground">
-                  {
-                    projects.find(
-                      (project) => project._id === selectedProjectId,
-                    )?.name
-                  }
-                </span>
-
-                <button
-                  onClick={() => setSelectedProjectId(null)}
-                  className="text-xs underline hover:text-foreground"
-                >
-                  Clear filter
-                </button>
-              </div>
-            )}
           </CardHeader>
 
           <CardContent>
@@ -756,120 +761,22 @@ export default function InboxCard() {
             </div>
 
             <div className="mt-4 flex flex-wrap gap-2">
-              {/* ALL TASKS BUTTON */}
-              <button
-                onClick={() => setSelectedProjectId(null)}
-                className={`rounded-lg border px-3 py-2 transition ${
-                  selectedProjectId === null
-                    ? "border-zinc-500 bg-zinc-100 text-zinc-950"
-                    : "border-zinc-800 bg-zinc-900 hover:bg-zinc-800"
-                }`}
-              >
-                All Tasks
-              </button>
-
-              {/* PROJECT BUTTONS */}
-              {projects.map((project) => {
-                const projectTaskCount = items.filter(
-                  (item) => item.projectId === project._id,
-                ).length;
-
-                const isSelected = selectedProjectId === project._id;
-
-                const isEditing = editingProjectId === project._id;
-
-                return (
-                  <div
-                    key={project._id}
-                    className={`flex items-center rounded-lg border transition ${
-                      isSelected
-                        ? "border-zinc-500 bg-zinc-100 text-zinc-950"
-                        : "border-zinc-800 bg-zinc-900"
-                    }`}
-                  >
-                    {isEditing ? (
-                      <input
-                        autoFocus
-                        value={editingProjectName}
-                        onChange={(e) => setEditingProjectName(e.target.value)}
-                        onKeyDown={async (e) => {
-                          if (e.key === "Enter") {
-                            if (!editingProjectName.trim()) return;
-
-                            await updateProject({
-                              id: project._id,
-                              name: editingProjectName.trim(),
-                            });
-
-                            setEditingProjectId(null);
-                            setEditingProjectName("");
-                          }
-
-                          if (e.key === "Escape") {
-                            setEditingProjectId(null);
-                            setEditingProjectName("");
-                          }
-                        }}
-                        className="w-40 rounded-md border bg-background px-2 py-1 text-sm text-foreground outline-none"
-                      />
-                    ) : (
-                      <button
-                        onClick={() => setSelectedProjectId(project._id)}
-                        className="px-3 py-2 hover:opacity-80"
-                      >
-                        {project.name}
-
-                        <span className="ml-2 text-xs opacity-60">
-                          {projectTaskCount}
-                        </span>
-                      </button>
-                    )}
-
-                    {!isEditing && (
-                      <>
-                        <button
-                          onClick={() => {
-                            setEditingProjectId(project._id);
-                            setEditingProjectName(project.name);
-                          }}
-                          className="px-2 py-2 text-xs opacity-60 hover:opacity-100"
-                          title="Rename project"
-                        >
-                          ✎
-                        </button>
-
-                        <button
-                          onClick={async () => {
-                            const confirmed = window.confirm(
-                              `Delete "${project.name}"?\n\nYour tasks will not be deleted. They will simply become unassigned.`,
-                            );
-
-                            if (!confirmed) return;
-
-                            await deleteProject({
-                              id: project._id,
-                            });
-
-                            if (selectedProjectId === project._id) {
-                              setSelectedProjectId(null);
-                            }
-                          }}
-                          className="px-2 py-2 text-red-500 hover:text-red-400"
-                          title="Delete project"
-                        >
-                          ✕
-                        </button>
-                      </>
-                    )}
-                  </div>
-                );
-              })}
+              {projects.map((project) => (
+                <div
+                  key={project._id}
+                  className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2"
+                >
+                  {project.name}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
+
+        {/* ==================== CALENDAR ==================== */}
         <div className="mt-8">
           <WeeklyCalendar
-            items={visibleItems}
+            items={items}
             moveItem={moveItem}
             completeItem={completeItem}
             editingId={editingId}
@@ -881,6 +788,8 @@ export default function InboxCard() {
           />
         </div>
       </div>
+
+      {/* ==================== TASK DETAILS MODAL ==================== */}
       {selectedTask && (
         <>
           <div
@@ -904,6 +813,7 @@ export default function InboxCard() {
               <CardContent className="space-y-4">
                 <div>
                   <label className="text-sm text-muted-foreground">Title</label>
+
                   <input
                     value={detailsTitle}
                     onChange={(e) => setDetailsTitle(e.target.value)}
@@ -913,6 +823,7 @@ export default function InboxCard() {
 
                 <div>
                   <label className="text-sm text-muted-foreground">Notes</label>
+
                   <Textarea
                     value={detailsNotes}
                     onChange={(e) => setDetailsNotes(e.target.value)}
@@ -930,6 +841,7 @@ export default function InboxCard() {
                   <label className="text-sm text-muted-foreground">
                     Priority
                   </label>
+
                   <select
                     value={detailsPriority}
                     onChange={(e) => setDetailsPriority(e.target.value)}
@@ -940,6 +852,7 @@ export default function InboxCard() {
                     <option value="high">High</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="text-sm text-muted-foreground">
                     Project
@@ -965,6 +878,7 @@ export default function InboxCard() {
                     ))}
                   </select>
                 </div>
+
                 <div className="space-y-3">
                   <label className="text-sm text-muted-foreground">
                     Repeat
@@ -980,16 +894,11 @@ export default function InboxCard() {
                         setDetailsRecurrenceType(e.target.value);
                       }
                     }}
-                    className="
-w-full rounded-md border px-3 py-2
-"
+                    className="w-full rounded-md border px-3 py-2"
                   >
                     <option value="none">Does not repeat</option>
-
                     <option value="daily">Daily</option>
-
                     <option value="weekly">Weekly</option>
-
                     <option value="monthly">Monthly</option>
                   </select>
 
@@ -1089,6 +998,8 @@ w-full rounded-md border px-3 py-2
           </div>
         </>
       )}
+
+      {/* ==================== DRAG OVERLAY ==================== */}
       <DragOverlay>
         {activeItem ? (
           <div className="bg-background border rounded-xl shadow-2xl px-4 py-3 cursor-grabbing min-w-[220px] opacity-95">

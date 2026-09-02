@@ -78,14 +78,24 @@ export default function WeeklyCalendar({
 
   const { setNodeRef: setNextWeekRef, isOver: isNextWeekOver } = useDroppable({
     id: "next-week",
+    data: {
+      type: "next-week",
+    },
   });
+
   const { setNodeRef: setPreviousWeekRef, isOver: isPreviousWeekOver } =
     useDroppable({
       id: "previous-week",
+      data: {
+        type: "previous-week",
+      },
     });
 
   const { setNodeRef: setTodayRef, isOver: isTodayOver } = useDroppable({
     id: "today",
+    data: {
+      type: "today",
+    },
   });
 
   return (
@@ -211,6 +221,10 @@ export default function WeeklyCalendar({
           const isSelected = isSameDay(day, selectedDate);
           const { setNodeRef, isOver } = useDroppable({
             id: day.toISOString(),
+            data: {
+              type: "calendar-day",
+              date: day.toISOString(),
+            },
           });
 
           // 🔥 Get items for this specific day
