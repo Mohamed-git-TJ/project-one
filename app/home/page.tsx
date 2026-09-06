@@ -894,12 +894,35 @@ export default function InboxCard() {
                         setDetailsRecurrenceType(e.target.value);
                       }
                     }}
-                    className="w-full rounded-md border px-3 py-2"
+                    className="w-full rounded-md border bg-background px-3 py-2 text-foreground"
                   >
-                    <option value="none">Does not repeat</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
+                    <option
+                      value="none"
+                      className="bg-background text-foreground"
+                    >
+                      Does not repeat
+                    </option>
+
+                    <option
+                      value="daily"
+                      className="bg-background text-foreground"
+                    >
+                      Daily
+                    </option>
+
+                    <option
+                      value="weekly"
+                      className="bg-background text-foreground"
+                    >
+                      Weekly
+                    </option>
+
+                    <option
+                      value="monthly"
+                      className="bg-background text-foreground"
+                    >
+                      Monthly
+                    </option>
                   </select>
 
                   {detailsRecurring && (
