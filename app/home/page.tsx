@@ -31,6 +31,7 @@ export default function InboxCard() {
     completedAt?: number;
     notes?: string;
     priority?: string;
+    contexts?: string[];
 
     // ⭐ Recurring task fields
     recurring?: boolean;
@@ -105,6 +106,7 @@ export default function InboxCard() {
     setDetailsTitle(task.title);
     setDetailsNotes(task.notes || "");
     setDetailsPriority(task.priority || "medium");
+    setDetailsContexts(task.contexts || []);
     setDetailsProjectId(task.projectId);
     setDetailsRecurring(task.recurring || false);
 
@@ -136,6 +138,7 @@ export default function InboxCard() {
       title: detailsTitle,
       notes: detailsNotes,
       priority: detailsPriority,
+      contexts: detailsContexts,
       projectId: detailsProjectId,
 
       recurring: detailsRecurring,
@@ -185,6 +188,11 @@ export default function InboxCard() {
   const [detailsTitle, setDetailsTitle] = useState("");
   const [detailsNotes, setDetailsNotes] = useState("");
   const [detailsPriority, setDetailsPriority] = useState("medium");
+  const [detailsContexts, setDetailsContexts] = useState<string[]>([]);
+  const [newContext, setNewContext] = useState("");
+  const [activeContext, setActiveContext] = useState<string | null>(null);
+
+  const defaultContexts = ["@Work", "@Home", "@Computer", "@Phone", "@Errands"];
 
   const [detailsProjectId, setDetailsProjectId] = useState<
     Id<"projects"> | undefined
@@ -251,30 +259,31 @@ export default function InboxCard() {
     };
   }, [selectedTask]);
 
-  const inboxItems = items.filter((item) => item.status === "inbox");
+  const allContexts = Array.from(
+    new Set([
+      ...defaultContexts,
+      ...items.flatMap((item) => item.contexts || []),
+    ]),
+  );
 
-  const incubatorItems = items.filter((item) => item.status === "incubator");
+  const filteredItems = activeContext
+    ? items.filter((item) => item.contexts?.includes(activeContext))
+    : items;
+
+  const inboxItems = filteredItems.filter((item) => item.status === "inbox");
+
+  const incubatorItems = filteredItems.filter(
+    (item) => item.status === "incubator",
+  );
 
   return (
     <DndContext
       collisionDetection={(args) => {
         const pointerCollisions = pointerWithin(args);
 
-        const inboxCollision = pointerCollisions.find(
-          (collision) => collision.id.toString() === "inbox",
-        );
-
-        if (inboxCollision) return [inboxCollision];
-
-        const incubatorCollision = pointerCollisions.find(
-          (collision) => collision.id.toString() === "incubator",
-        );
-
-        if (incubatorCollision) return [incubatorCollision];
-
-        if (pointerCollisions.length > 0) return pointerCollisions;
-
-        return rectIntersection(args);
+        return pointerCollisions.length > 0
+          ? pointerCollisions
+          : rectIntersection(args);
       }}
       onDragStart={(event) => {
         const dragged = items.find((item) => item._id === event.active.id);
@@ -292,12 +301,12 @@ export default function InboxCard() {
 
         const itemId = active.id as Id<"tasks">;
         const overId = over.id.toString();
-        const dropData = over.data.current;
-        const dropType = dropData?.type;
-
         const draggedItem = items.find((item) => item._id === itemId);
 
-        if (dropType === "next-week" || overId === "next-week") {
+        // 📅 calendar
+        const isDate = !isNaN(Date.parse(overId));
+
+        if (overId === "next-week") {
           if (!draggedItem?.date) return;
 
           const nextWeekDate = new Date(draggedItem.date);
@@ -307,7 +316,7 @@ export default function InboxCard() {
           return;
         }
 
-        if (dropType === "previous-week" || overId === "previous-week") {
+        if (overId === "previous-week") {
           if (!draggedItem?.date) return;
 
           const previousWeekDate = new Date(draggedItem.date);
@@ -317,15 +326,15 @@ export default function InboxCard() {
           return;
         }
 
-        if (dropType === "today" || overId === "today") {
+        if (overId === "today") {
           const today = new Date();
 
           moveItem(itemId, "scheduled", today.toISOString());
           return;
         }
 
-        if (dropType === "calendar-day" && dropData?.date) {
-          moveItem(itemId, "scheduled", dropData.date);
+        if (isDate) {
+          moveItem(itemId, "scheduled", overId);
           return;
         }
 
@@ -350,6 +359,40 @@ export default function InboxCard() {
       )}
 
       <div className="min-h-screen w-full max-w-7xl mx-auto px-6 pt-10 text-foreground">
+        {/* ==================== GTD CONTEXTS ==================== */}
+        <Card className="mb-6 border border-zinc-800 bg-zinc-950/80 shadow-2xl">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-sm font-medium text-muted-foreground">
+                Contexts
+              </span>
+              <button
+                onClick={() => setActiveContext(null)}
+                className={`rounded-full border px-3 py-1 text-xs transition ${
+                  activeContext === null
+                    ? "border-zinc-300 bg-zinc-100 text-zinc-950"
+                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                }`}
+              >
+                All
+              </button>
+              {allContexts.map((context) => (
+                <button
+                  key={context}
+                  onClick={() => setActiveContext(context)}
+                  className={`rounded-full border px-3 py-1 text-xs transition ${
+                    activeContext === context
+                      ? "border-zinc-300 bg-zinc-100 text-zinc-950"
+                      : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                  }`}
+                >
+                  {context}
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid md:grid-cols-2 gap-6 items-stretch">
           {/* ==================== INBOX ==================== */}
           <Card
@@ -462,9 +505,22 @@ export default function InboxCard() {
                                     setEditingId(item._id);
                                     setEditingText(item.title);
                                   }}
-                                  className="w-full truncate"
+                                  className="w-full min-w-0 overflow-hidden"
                                 >
-                                  {item.title}
+                                  <div className="truncate">{item.title}</div>
+                                  {item.contexts &&
+                                    item.contexts.length > 0 && (
+                                      <div className="mt-1 flex flex-wrap gap-1">
+                                        {item.contexts.map((context) => (
+                                          <span
+                                            key={context}
+                                            className="rounded-full border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[10px] text-zinc-400"
+                                          >
+                                            {context}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
                                 </div>
                               </DraggableItem>
                             </div>
@@ -645,9 +701,22 @@ export default function InboxCard() {
                                     setEditingId(item._id);
                                     setEditingText(item.title);
                                   }}
-                                  className="w-full truncate"
+                                  className="w-full min-w-0 overflow-hidden"
                                 >
-                                  {item.title}
+                                  <div className="truncate">{item.title}</div>
+                                  {item.contexts &&
+                                    item.contexts.length > 0 && (
+                                      <div className="mt-1 flex flex-wrap gap-1">
+                                        {item.contexts.map((context) => (
+                                          <span
+                                            key={context}
+                                            className="rounded-full border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[10px] text-zinc-400"
+                                          >
+                                            {context}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
                                 </div>
                               </DraggableItem>
                             </div>
@@ -776,7 +845,7 @@ export default function InboxCard() {
         {/* ==================== CALENDAR ==================== */}
         <div className="mt-8">
           <WeeklyCalendar
-            items={items}
+            items={filteredItems}
             moveItem={moveItem}
             completeItem={completeItem}
             editingId={editingId}
@@ -798,7 +867,7 @@ export default function InboxCard() {
           />
 
           <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
-            <Card className="bg-background border shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+            <Card className="bg-background border shadow-2xl animate-in fade-in zoom-in-95 duration-150 max-h-[90vh] flex flex-col">
               <CardHeader className="relative">
                 <CardTitle>Task Details</CardTitle>
 
@@ -810,7 +879,7 @@ export default function InboxCard() {
                 </button>
               </CardHeader>
 
-              <CardContent className="space-y-4">
+              <CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto">
                 <div>
                   <label className="text-sm text-muted-foreground">Title</label>
 
@@ -877,6 +946,83 @@ export default function InboxCard() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* ==================== CONTEXTS ==================== */}
+                <div className="space-y-2">
+                  <label className="text-sm text-muted-foreground">
+                    Contexts
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+                    {allContexts.map((context) => {
+                      const selected = detailsContexts.includes(context);
+
+                      return (
+                        <button
+                          key={context}
+                          type="button"
+                          onClick={() =>
+                            setDetailsContexts((current) =>
+                              selected
+                                ? current.filter((value) => value !== context)
+                                : [...current, context],
+                            )
+                          }
+                          className={`rounded-full border px-3 py-1 text-xs transition ${
+                            selected
+                              ? "border-zinc-300 bg-zinc-100 text-zinc-950"
+                              : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                          }`}
+                        >
+                          {context}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex gap-2">
+                    <input
+                      value={newContext}
+                      onChange={(e) => setNewContext(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        const value = newContext.trim();
+                        if (!value) return;
+                        const context = value.startsWith("@")
+                          ? value
+                          : `@${value}`;
+                        setDetailsContexts((current) =>
+                          current.includes(context)
+                            ? current
+                            : [...current, context],
+                        );
+                        setNewContext("");
+                      }}
+                      placeholder="Add custom context..."
+                      className="flex-1 rounded-md border bg-background px-3 py-2 text-sm outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const value = newContext.trim();
+                        if (!value) return;
+                        const context = value.startsWith("@")
+                          ? value
+                          : `@${value}`;
+                        setDetailsContexts((current) =>
+                          current.includes(context)
+                            ? current
+                            : [...current, context],
+                        );
+                        setNewContext("");
+                      }}
+                      className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm hover:bg-zinc-800"
+                    >
+                      Add
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
@@ -997,7 +1143,7 @@ export default function InboxCard() {
                   <span className="capitalize">{selectedTask.status}</span>
                 </div>
 
-                <div className="flex justify-between pt-4">
+                <div className="sticky bottom-0 flex justify-between border-t bg-background pt-4">
                   <button
                     onClick={async () => {
                       const taskId = selectedTask._id;

@@ -78,24 +78,14 @@ export default function WeeklyCalendar({
 
   const { setNodeRef: setNextWeekRef, isOver: isNextWeekOver } = useDroppable({
     id: "next-week",
-    data: {
-      type: "next-week",
-    },
   });
-
   const { setNodeRef: setPreviousWeekRef, isOver: isPreviousWeekOver } =
     useDroppable({
       id: "previous-week",
-      data: {
-        type: "previous-week",
-      },
     });
 
   const { setNodeRef: setTodayRef, isOver: isTodayOver } = useDroppable({
     id: "today",
-    data: {
-      type: "today",
-    },
   });
 
   return (
@@ -221,10 +211,6 @@ export default function WeeklyCalendar({
           const isSelected = isSameDay(day, selectedDate);
           const { setNodeRef, isOver } = useDroppable({
             id: day.toISOString(),
-            data: {
-              type: "calendar-day",
-              date: day.toISOString(),
-            },
           });
 
           // 🔥 Get items for this specific day
@@ -359,7 +345,7 @@ export default function WeeklyCalendar({
                         className="flex-1 min-w-0 bg-background outline-none border rounded px-1 py-0.5 text-xs"
                       />
                     ) : (
-                      <div className="flex-1 min-w-0 w-0 relative overflow-hidden">
+                      <div className="flex-1 min-w-0 relative">
                         <TooltipProvider delayDuration={200}>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -370,7 +356,7 @@ export default function WeeklyCalendar({
                                       setEditingId(item._id);
                                       setEditingText(item.title);
                                     }}
-                                    className={`block w-full min-w-0 max-w-full overflow-hidden text-left leading-5 ${
+                                    className={`block text-left leading-5 ${
                                       isExpanded
                                         ? "whitespace-pre-wrap break-words"
                                         : "truncate whitespace-nowrap pr-6"
@@ -380,7 +366,24 @@ export default function WeeklyCalendar({
                                         : ""
                                     }`}
                                   >
-                                    {item.title}
+                                    <span className="block truncate">
+                                      {item.title}
+                                    </span>
+                                    {item.contexts &&
+                                      item.contexts.length > 0 && (
+                                        <span className="mt-0.5 flex flex-wrap gap-1">
+                                          {item.contexts.map(
+                                            (context: string) => (
+                                              <span
+                                                key={context}
+                                                className="rounded-full border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[9px] text-zinc-400"
+                                              >
+                                                {context}
+                                              </span>
+                                            ),
+                                          )}
+                                        </span>
+                                      )}
                                   </span>
                                 </DraggableItem>
                               </div>

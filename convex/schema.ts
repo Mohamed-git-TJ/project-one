@@ -15,34 +15,21 @@ export default defineSchema({
 
     notes: v.optional(v.string()),
     priority: v.optional(v.string()),
+    contexts: v.optional(v.array(v.string())),
 
     // ⭐ RECURRING TASKS
-
     recurring: v.optional(v.boolean()),
-
     recurrenceType: v.optional(v.string()),
-    // daily
-    // weekly
-    // monthly
-    // yearly
-
     recurrenceInterval: v.optional(v.number()),
-    // every 1 week
-    // every 2 weeks
-    // every 3 months
-
     recurrenceDays: v.optional(v.array(v.string())),
-    // ["monday","wednesday"]
-
     recurrenceCount: v.optional(v.number()),
-    // repeat 10 times
-
     recurrenceEndDate: v.optional(v.string()),
 
     projectId: v.optional(v.id("projects")),
 
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
+
   projects: defineTable({
     userId: v.string(),
     name: v.string(),

@@ -45,6 +45,7 @@ export const createTask = mutation({
   args: {
     title: v.string(),
     status: v.string(),
+    contexts: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -57,6 +58,7 @@ export const createTask = mutation({
 
       // ✅ NEW
       completed: false,
+      contexts: args.contexts,
 
       createdAt: Date.now(),
     });
@@ -144,6 +146,7 @@ export const updateTaskDetails = mutation({
     title: v.string(),
     notes: v.optional(v.string()),
     priority: v.optional(v.string()),
+    contexts: v.optional(v.array(v.string())),
     recurring: v.optional(v.boolean()),
 
     recurrenceType: v.optional(v.string()),
@@ -192,6 +195,7 @@ export const updateTaskDetails = mutation({
       title: args.title,
       notes: args.notes,
       priority: args.priority,
+      contexts: args.contexts,
 
       recurring: args.recurring,
 
@@ -265,20 +269,6 @@ export const toggleComplete = mutation({
     // CHECK REPEAT COUNT
     // ------------------------------------------------
 
-    // recurrenceCount = number of future occurrences remaining
-    //
-    // Example:
-    // recurrenceCount = 3
-    //
-    // Complete current task
-    // → create next task (2 remaining)
-    // → complete next task
-    // → create next task (1 remaining)
-    // → complete next task
-    // → create next task (0 remaining)
-    // → complete final task
-    // → stop
-
     if (task.recurrenceCount !== undefined && task.recurrenceCount <= 0) {
       await ctx.db.patch(args.id, {
         completed: true,
@@ -339,6 +329,7 @@ export const toggleComplete = mutation({
       notes: task.notes,
 
       priority: task.priority,
+      contexts: task.contexts,
 
       recurring: true,
 
