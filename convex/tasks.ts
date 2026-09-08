@@ -7,6 +7,14 @@ function calculateNextOccurrence(
 ) {
   const next = new Date(currentDate);
 
+  if (Number.isNaN(next.getTime())) {
+    throw new Error("Invalid task date");
+  }
+
+  if (!Number.isInteger(interval) || interval < 1) {
+    throw new Error("Recurrence interval must be a positive integer");
+  }
+
   switch (type) {
     case "daily":
       next.setDate(next.getDate() + interval);
@@ -16,13 +24,26 @@ function calculateNextOccurrence(
       next.setDate(next.getDate() + interval * 7);
       break;
 
-    case "monthly":
+    case "monthly": {
+      // Clamp dates such as Jan 31 -> Feb 28/29 instead of rolling into March.
+      const originalDay = next.getDate();
+      next.setDate(1);
       next.setMonth(next.getMonth() + interval);
+      const lastDay = new Date(
+        next.getFullYear(),
+        next.getMonth() + 1,
+        0,
+      ).getDate();
+      next.setDate(Math.min(originalDay, lastDay));
       break;
+    }
 
     case "yearly":
       next.setFullYear(next.getFullYear() + interval);
       break;
+
+    default:
+      throw new Error("Unsupported recurrence type");
   }
 
   return next.toISOString();
@@ -103,10 +124,20 @@ export const updateTask = mutation({
       }
     }
 
-    await ctx.db.patch(args.id, {
+    const patch = {
       status: args.status,
       date: args.date,
-    });
+    };
+
+    if (args.projectId !== undefined) {
+      await ctx.db.patch(args.id, {
+        ...patch,
+        projectId: args.projectId,
+      });
+      return;
+    }
+
+    await ctx.db.patch(args.id, patch);
   },
 });
 

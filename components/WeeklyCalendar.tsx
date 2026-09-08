@@ -39,18 +39,13 @@ export default function WeeklyCalendar({
   const [searchIndex, setSearchIndex] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
-
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
-
-  const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
-
-  const isCurrentWeek = isSameDay(
-    startOfWeek(new Date(), { weekStartsOn: 1 }),
-    weekStart,
-  );
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
+  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const days = Array.from({ length: 7 }).map((_, i) => addDays(weekStart, i));
+
   const todayIso = new Date().toDateString();
+
   const searchMatches = calendarSearch.trim()
     ? items.filter(
         (item: any) =>
@@ -62,14 +57,11 @@ export default function WeeklyCalendar({
       )
     : [];
 
-  const currentMatch = searchMatches[searchIndex];
-
   const goToMatch = (index: number) => {
     const match = searchMatches[index];
     if (!match?.date) return;
 
     const matchDate = new Date(match.date);
-
     setCurrentDate(matchDate);
     setSelectedDate(matchDate);
     setActiveDay(matchDate.toDateString());
@@ -79,6 +71,7 @@ export default function WeeklyCalendar({
   const { setNodeRef: setNextWeekRef, isOver: isNextWeekOver } = useDroppable({
     id: "next-week",
   });
+
   const { setNodeRef: setPreviousWeekRef, isOver: isPreviousWeekOver } =
     useDroppable({
       id: "previous-week",
@@ -89,68 +82,79 @@ export default function WeeklyCalendar({
   });
 
   return (
-    <Card className="p-6 mt-8 relative border border-zinc-800 bg-zinc-950/80 shadow-2xl">
+    <Card className="relative mt-4 border-zinc-800 bg-zinc-950/80 p-5 shadow-sm sm:p-6">
       {expandedDay && (
         <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 pointer-events-auto"
+          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
           onClick={() => setExpandedDay(null)}
         />
       )}
-      {/* Header */}
-      <div className="relative flex items-center justify-between mb-6">
-        <div className="flex gap-2 items-center">
+
+      {/* ==================== HEADER ==================== */}
+      <div className="relative mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5">
           <Button
             ref={setPreviousWeekRef}
             variant="outline"
-            className={`bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800 transition-all duration-200 hover:scale-[1.02] ${
-              isPreviousWeekOver ? "ring-2 ring-zinc-200/40 bg-zinc-800" : ""
+            className={`h-8 border-zinc-700 bg-zinc-900 px-2.5 text-xs text-zinc-500 shadow-none hover:bg-zinc-800 hover:text-zinc-100 ${
+              isPreviousWeekOver ? "ring-2 ring-zinc-300/60" : ""
             }`}
             onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
           >
-            Previous
+            ←
           </Button>
 
-          {/* ✅ NEW TODAY BUTTON */}
           <Button
             ref={setTodayRef}
             variant="outline"
-            className={`bg-zinc-100 text-zinc-950 border-zinc-300 hover:bg-zinc-200 transition-all duration-200 hover:scale-[1.02] ${
-              isTodayOver ? "ring-2 ring-zinc-200/60 scale-[1.03]" : ""
+            className={`h-8 border-zinc-800 bg-zinc-950/80 px-3 text-xs font-medium text-zinc-500 shadow-none hover:bg-zinc-800 ${
+              isTodayOver ? "ring-2 ring-zinc-300/60" : ""
             }`}
             onClick={() => {
               const today = new Date();
               setCurrentDate(today);
               setSelectedDate(today);
+              setActiveDay(today.toDateString());
             }}
           >
             Today
           </Button>
+
           <Button
             variant="outline"
-            className="bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800"
+            className="h-8 border-zinc-700 bg-zinc-900 px-2.5 text-xs text-zinc-500 shadow-none hover:bg-zinc-800 hover:text-zinc-100"
             onClick={() => setShowSearch((prev) => !prev)}
+            title="Search calendar"
           >
             🔍
           </Button>
         </div>
 
-        <h2 className="absolute left-1/2 -translate-x-1/2 text-lg font-semibold">
-          Week of {format(weekStart, "MMM d, yyyy")}
-        </h2>
+        <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 text-center sm:block">
+          <h2 className="text-sm font-semibold text-zinc-100 sm:text-base">
+            Week of {format(weekStart, "MMM d, yyyy")}
+          </h2>
+        </div>
+
         <Button
           ref={setNextWeekRef}
           variant="outline"
-          className={`bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800 transition-all duration-200 hover:scale-[1.02] ${
-            isNextWeekOver ? "ring-2 ring-zinc-200/40 bg-zinc-800" : ""
+          className={`h-8 border-zinc-700 bg-zinc-900 px-2.5 text-xs text-zinc-500 shadow-none hover:bg-zinc-800 hover:text-zinc-100 ${
+            isNextWeekOver ? "ring-2 ring-zinc-300/60" : ""
           }`}
           onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
         >
-          Next
+          →
         </Button>
       </div>
 
+      <div className="mb-4 text-sm font-semibold text-zinc-100 sm:hidden">
+        Week of {format(weekStart, "MMM d, yyyy")}
+      </div>
+
+      {/* ==================== SEARCH ==================== */}
       {showSearch && (
-        <div className="mb-6 flex items-center gap-2">
+        <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/70 p-2">
           <input
             value={calendarSearch}
             onChange={(e) => {
@@ -163,16 +167,16 @@ export default function WeeklyCalendar({
               }
             }}
             placeholder="Find scheduled task..."
-            className="w-full max-w-sm rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+            className="min-w-[180px] flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs outline-none focus:border-zinc-600"
           />
 
           <Button
             variant="outline"
+            className="h-8 border-zinc-800 bg-zinc-950/80 px-2 text-xs"
             disabled={searchMatches.length === 0}
             onClick={() => {
               const nextIndex =
                 searchIndex === 0 ? searchMatches.length - 1 : searchIndex - 1;
-
               setSearchIndex(nextIndex);
               goToMatch(nextIndex);
             }}
@@ -182,11 +186,11 @@ export default function WeeklyCalendar({
 
           <Button
             variant="outline"
+            className="h-8 border-zinc-800 bg-zinc-950/80 px-2 text-xs"
             disabled={searchMatches.length === 0}
             onClick={() => {
               const nextIndex =
                 searchIndex === searchMatches.length - 1 ? 0 : searchIndex + 1;
-
               setSearchIndex(nextIndex);
               goToMatch(nextIndex);
             }}
@@ -194,7 +198,7 @@ export default function WeeklyCalendar({
             →
           </Button>
 
-          <div className="text-xs text-muted-foreground whitespace-nowrap">
+          <div className="text-[11px] text-zinc-400">
             {calendarSearch
               ? searchMatches.length > 0
                 ? `${searchIndex + 1} / ${searchMatches.length}`
@@ -204,8 +208,8 @@ export default function WeeklyCalendar({
         </div>
       )}
 
-      {/* Days */}
-      <div className="grid grid-cols-7 gap-3 text-center items-start">
+      {/* ==================== DAYS ==================== */}
+      <div className="grid grid-cols-7 gap-1.5 overflow-x-auto text-center sm:gap-2 lg:gap-3">
         {days.map((day) => {
           const isToday = isSameDay(day, new Date());
           const isSelected = isSameDay(day, selectedDate);
@@ -213,81 +217,77 @@ export default function WeeklyCalendar({
             id: day.toISOString(),
           });
 
-          // 🔥 Get items for this specific day
           const dayItems = items.filter(
             (item: any) =>
               item.status === "scheduled" &&
               item.date &&
               isSameDay(new Date(item.date), day),
           );
+
           const dayId = day.toDateString();
-
           const isExpanded = expandedDay === day.toISOString();
-
           const isActive =
             activeDay === dayId ||
             (!activeDay && day.toDateString() === todayIso);
           const visibleItems = isExpanded ? dayItems : dayItems.slice(0, 3);
+
           return (
             <div
               ref={setNodeRef}
               key={day.toString()}
               onClick={(e) => {
                 e.stopPropagation();
-
                 setActiveDay(dayId);
               }}
               onDoubleClick={(e) => {
                 e.stopPropagation();
-
-                if (!expandedDay) {
-                  setExpandedDay(day.toISOString());
-                }
+                if (!expandedDay) setExpandedDay(day.toISOString());
               }}
               style={{
                 pointerEvents: expandedDay && !isExpanded ? "none" : "auto",
               }}
-              className={`border border-zinc-800 rounded-xl p-3 flex flex-col gap-2 transition-all duration-200 ease-out relative hover:border-zinc-600 hover:shadow-lg hover:-translate-y-0.5 ${
+              className={`relative min-w-0 rounded-xl border p-1.5 transition-all duration-200 sm:p-2.5 ${
                 isExpanded
-                  ? "fixed top-10 bottom-10 left-1/2 -translate-x-1/2 w-full max-w-3xl rounded-2xl border z-50 bg-background shadow-2xl"
+                  ? "fixed bottom-8 left-1/2 top-8 z-50 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 overflow-hidden rounded-2xl border-zinc-800 bg-zinc-950/80 p-5 shadow-2xl sm:p-6"
                   : isActive
-                    ? "min-h-[280px] bg-zinc-900 border-zinc-300/30 shadow-lg ring-1 ring-white/10"
-                    : "min-h-[220px] bg-zinc-950/70"
-              } ${isOver ? "bg-muted" : ""}`}
+                    ? "min-h-[240px] border-zinc-700 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-100 sm:min-h-[270px]"
+                    : "min-h-[210px] border-zinc-800 bg-zinc-950/80 sm:min-h-[240px]"
+              } ${isOver ? "bg-zinc-900/70 ring-2 ring-zinc-300/60" : ""}`}
             >
-              {/* Day button (UNCHANGED behavior) */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   setSelectedDate(day);
+                  setActiveDay(dayId);
                 }}
-                className={`
-            p-3 rounded-lg transition
-            hover:bg-muted transition-all
-            ${
-              isSelected
-                ? "bg-zinc-100/10 text-zinc-100 border-zinc-300/30"
-                : "border border-zinc-800"
-            }
-            ${
-              isActive
-                ? "border-zinc-300/30 bg-zinc-100/5"
-                : isToday && !isSelected
-                  ? "border-zinc-300/30"
-                  : ""
-            }
-          `}
+                className={`w-full rounded-lg border p-2 transition hover:bg-zinc-800 sm:p-2.5 ${
+                  isSelected
+                    ? "border-zinc-700 bg-zinc-900/70"
+                    : "border-transparent"
+                }`}
               >
-                <div className="text-sm font-medium">{format(day, "EEE")}</div>
-                <div className="text-lg">{format(day, "d")}</div>
-
-                <div className="text-[11px] italic text-muted-foreground mt-1">
+                <div
+                  className={`text-[10px] font-medium uppercase tracking-wide sm:text-xs ${
+                    isToday ? "text-zinc-100" : "text-zinc-400"
+                  }`}
+                >
+                  {format(day, "EEE")}
+                </div>
+                <div
+                  className={`mt-0.5 text-base font-semibold sm:text-lg ${
+                    isToday ? "text-zinc-100" : "text-zinc-500"
+                  }`}
+                >
+                  {format(day, "d")}
+                </div>
+                <div className="mt-0.5 text-[9px] text-zinc-400 sm:text-[10px]">
                   {dayItems.length} {dayItems.length === 1 ? "task" : "tasks"}
                 </div>
               </button>
+
               {isExpanded && (
                 <button
-                  className="absolute top-2 right-2 text-sm z-50"
+                  className="absolute right-4 top-4 z-50 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-100"
                   onClick={(e) => {
                     e.stopPropagation();
                     setExpandedDay(null);
@@ -296,15 +296,17 @@ export default function WeeklyCalendar({
                   ✕
                 </button>
               )}
-              {/* 🔥 TASK LIST */}
+
               <div
-                className={`space-y-1.5 text-left ${
-                  isExpanded ? "max-h-[70vh] overflow-y-auto pr-1" : ""
+                className={`mt-2 space-y-1.5 text-left ${
+                  isExpanded
+                    ? "max-h-[calc(100vh-180px)] overflow-y-auto pr-1"
+                    : ""
                 }`}
                 onClick={(e) => e.stopPropagation()}
               >
                 {dayItems.length === 0 && (
-                  <div className="text-[10px] text-muted-foreground text-center py-2">
+                  <div className="py-2 text-center text-[9px] text-zinc-400 sm:text-[10px]">
                     Nothing scheduled
                   </div>
                 )}
@@ -312,20 +314,10 @@ export default function WeeklyCalendar({
                 {visibleItems.map((item: any) => (
                   <div
                     key={item._id}
-                    className={`group relative flex items-center gap-2 text-xs border border-border/50 border-l-2 rounded-md px-2 py-1 transition-all hover:bg-muted/40 hover:border-zinc-300/30 cursor-pointer overflow-hidden ${
-                      calendarSearch.trim() &&
-                      item.title
-                        .toLowerCase()
-                        .includes(calendarSearch.trim().toLowerCase())
-                        ? "border-zinc-100 border-l-zinc-100 ring-1 ring-zinc-100/30"
-                        : "border-l-zinc-300/20"
-                    } ${
-                      item.completed
-                        ? "bg-zinc-800/60 text-zinc-400"
-                        : "bg-zinc-900/80 text-zinc-100"
+                    className={`group relative flex items-center gap-1.5 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/70 px-1.5 py-1 text-[10px] transition hover:border-zinc-600 hover:bg-zinc-950 sm:gap-2 sm:px-2 sm:py-1.5 sm:text-xs ${
+                      item.completed ? "opacity-55" : ""
                     }`}
                   >
-                    {/* ✅ DRAGGABLE TITLE */}
                     {editingId === item._id ? (
                       <input
                         autoFocus
@@ -333,19 +325,16 @@ export default function WeeklyCalendar({
                         onChange={(e) => setEditingText(e.target.value)}
                         onBlur={saveEdit}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            saveEdit();
-                          }
-
+                          if (e.key === "Enter") saveEdit();
                           if (e.key === "Escape") {
                             setEditingId(null);
                             setEditingText("");
                           }
                         }}
-                        className="flex-1 min-w-0 bg-background outline-none border rounded px-1 py-0.5 text-xs"
+                        className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-1 py-0.5 text-xs outline-none"
                       />
                     ) : (
-                      <div className="flex-1 min-w-0 relative">
+                      <div className="relative min-w-0 flex-1">
                         <TooltipProvider delayDuration={200}>
                           <Tooltip>
                             <TooltipTrigger asChild>
@@ -356,17 +345,19 @@ export default function WeeklyCalendar({
                                       setEditingId(item._id);
                                       setEditingText(item.title);
                                     }}
-                                    className={`block text-left leading-5 ${
-                                      isExpanded
-                                        ? "whitespace-pre-wrap break-words"
-                                        : "truncate whitespace-nowrap pr-6"
-                                    } ${
+                                    className={`block min-w-0 text-left leading-4 ${
                                       item.completed
-                                        ? "line-through text-muted-foreground"
-                                        : ""
+                                        ? "text-zinc-400 line-through"
+                                        : "text-zinc-500"
                                     }`}
                                   >
-                                    <span className="block truncate">
+                                    <span
+                                      className={`block truncate ${
+                                        isExpanded
+                                          ? "whitespace-normal"
+                                          : "whitespace-nowrap"
+                                      }`}
+                                    >
                                       {item.title}
                                     </span>
                                     {item.contexts &&
@@ -376,7 +367,7 @@ export default function WeeklyCalendar({
                                             (context: string) => (
                                               <span
                                                 key={context}
-                                                className="rounded-full border border-zinc-700 bg-zinc-950 px-1.5 py-0.5 text-[9px] text-zinc-400"
+                                                className="rounded-full bg-zinc-950 px-1 py-0.5 text-[8px] text-zinc-400"
                                               >
                                                 {context}
                                               </span>
@@ -388,11 +379,10 @@ export default function WeeklyCalendar({
                                 </DraggableItem>
                               </div>
                             </TooltipTrigger>
-
                             {!isExpanded && (
                               <TooltipContent
                                 side="top"
-                                className="max-w-[260px] text-sm leading-relaxed animate-in fade-in zoom-in-95"
+                                className="max-w-[260px] text-sm"
                               >
                                 {item.title}
                               </TooltipContent>
@@ -402,44 +392,45 @@ export default function WeeklyCalendar({
                       </div>
                     )}
 
-                    <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-background/90 rounded-md px-1 py-0.5 shadow-sm">
+                    <div className="absolute right-1 top-1 flex gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
                           openTaskDetails(item);
                         }}
-                        className="text-xs"
+                        className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-zinc-100"
                       >
                         ⓘ
                       </button>
-                      {/* ✅ COMPLETE BUTTON */}
                       <button
-                        onClick={() => completeItem(item._id)}
-                        className="text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          completeItem(item._id);
+                        }}
+                        className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-zinc-100"
                       >
                         {item.completed ? "↺" : "✓"}
                       </button>
-
-                      {/* ✅ MOVE BACK */}
                       <button
-                        onClick={() => moveItem(item._id, "inbox")}
-                        className="text-xs opacity-70 hover:opacity-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          moveItem(item._id, "inbox");
+                        }}
+                        className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-zinc-100"
                       >
                         ↩
                       </button>
                     </div>
                   </div>
                 ))}
-                {!isExpanded && dayItems.length > 2 && (
-                  <div className="absolute bottom-3 left-3 right-3 h-10 bg-gradient-to-t from-background to-transparent pointer-events-none rounded-b-xl" />
-                )}
+
                 {!isExpanded && dayItems.length > 3 && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setExpandedDay(day.toISOString());
                     }}
-                    className="text-[11px] text-muted-foreground hover:text-foreground text-left px-1"
+                    className="px-1 text-[9px] font-medium text-zinc-400 hover:text-zinc-100 sm:text-[10px]"
                   >
                     +{dayItems.length - 3} more
                   </button>
@@ -450,9 +441,9 @@ export default function WeeklyCalendar({
         })}
       </div>
 
-      {/* Optional: Selected Date Display */}
-      <div className="mt-6 text-sm text-muted-foreground">
-        Selected: {format(selectedDate, "EEEE, MMMM d, yyyy")}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-3 text-[11px] text-zinc-400">
+        <span>Selected: {format(selectedDate, "EEEE, MMMM d, yyyy")}</span>
+        <span>Drag tasks between days, Inbox and Incubator.</span>
       </div>
     </Card>
   );
