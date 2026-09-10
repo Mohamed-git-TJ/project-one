@@ -588,8 +588,9 @@ export default function InboxCard() {
                     onKeyDown={async (e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        await addItem(incubatorInput, "incubator");
-                        setIncubatorInput("");
+
+                        await addItem(inboxInput, "inbox");
+                        setInboxInput("");
                       }
                     }}
                   />
@@ -665,8 +666,9 @@ export default function InboxCard() {
                     onKeyDown={async (e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
-                        await addItem(inboxInput, "inbox");
-                        setInboxInput("");
+
+                        await addItem(incubatorInput, "incubator");
+                        setIncubatorInput("");
                       }
                     }}
                   />
