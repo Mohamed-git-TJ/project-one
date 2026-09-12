@@ -1,5 +1,25 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+
+const statusValidator = v.union(
+  v.literal("inbox"),
+  v.literal("incubator"),
+  v.literal("scheduled"),
+);
+
+const priorityValidator = v.union(
+  v.literal("low"),
+  v.literal("medium"),
+  v.literal("high"),
+);
+
+const recurrenceTypeValidator = v.union(
+  v.literal("daily"),
+  v.literal("weekly"),
+  v.literal("monthly"),
+  v.literal("yearly"),
+);
+
 function calculateNextOccurrence(
   currentDate: string,
   type: string,
@@ -48,7 +68,8 @@ function calculateNextOccurrence(
 
   return next.toISOString();
 }
-// ✅ GET TASKS
+
+// GET TASKS
 export const getTasks = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -61,36 +82,39 @@ export const getTasks = query({
   },
 });
 
-// ✅ CREATE TASK
+// CREATE TASK
 export const createTask = mutation({
   args: {
     title: v.string(),
-    status: v.string(),
+    status: statusValidator,
     contexts: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
+    const title = args.title.trim();
+
+    if (!title) {
+      throw new Error("Task title cannot be empty");
+    }
+
     return await ctx.db.insert("tasks", {
       userId: identity.subject,
-      title: args.title,
+      title,
       status: args.status,
-
-      // ✅ NEW
       completed: false,
       contexts: args.contexts,
-
       createdAt: Date.now(),
     });
   },
 });
 
-// ✅ UPDATE TASK
+// UPDATE TASK
 export const updateTask = mutation({
   args: {
     id: v.id("tasks"),
-    status: v.string(),
+    status: statusValidator,
     date: v.optional(v.string()),
     projectId: v.optional(v.id("projects")),
   },
@@ -107,7 +131,6 @@ export const updateTask = mutation({
       throw new Error("Task not found");
     }
 
-    // ✅ OWNER CHECK
     if (task.userId !== identity.subject) {
       throw new Error("Unauthorized");
     }
@@ -124,9 +147,16 @@ export const updateTask = mutation({
       }
     }
 
+    if (args.date !== undefined && Number.isNaN(new Date(args.date).getTime())) {
+      throw new Error("Invalid task date");
+    }
+
+    // Inbox and Incubator tasks are intentionally unscheduled.
+    const date = args.status === "scheduled" ? args.date : undefined;
+
     const patch = {
       status: args.status,
-      date: args.date,
+      date,
     };
 
     if (args.projectId !== undefined) {
@@ -160,13 +190,18 @@ export const editTask = mutation({
       throw new Error("Task not found");
     }
 
-    // ✅ OWNER CHECK
     if (task.userId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
+    const title = args.title.trim();
+
+    if (!title) {
+      throw new Error("Task title cannot be empty");
+    }
+
     await ctx.db.patch(args.id, {
-      title: args.title,
+      title,
     });
   },
 });
@@ -176,20 +211,14 @@ export const updateTaskDetails = mutation({
     id: v.id("tasks"),
     title: v.string(),
     notes: v.optional(v.string()),
-    priority: v.optional(v.string()),
+    priority: v.optional(priorityValidator),
     contexts: v.optional(v.array(v.string())),
     recurring: v.optional(v.boolean()),
-
-    recurrenceType: v.optional(v.string()),
-
+    recurrenceType: v.optional(recurrenceTypeValidator),
     recurrenceInterval: v.optional(v.number()),
-
     recurrenceCount: v.optional(v.number()),
-
     recurrenceDays: v.optional(v.array(v.string())),
-
     recurrenceEndDate: v.optional(v.string()),
-
     projectId: v.optional(v.id("projects")),
   },
 
@@ -210,6 +239,12 @@ export const updateTaskDetails = mutation({
       throw new Error("Unauthorized");
     }
 
+    const title = args.title.trim();
+
+    if (!title) {
+      throw new Error("Task title cannot be empty");
+    }
+
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
 
@@ -222,29 +257,56 @@ export const updateTaskDetails = mutation({
       }
     }
 
+    if (
+      args.recurrenceInterval !== undefined &&
+      (!Number.isInteger(args.recurrenceInterval) ||
+        args.recurrenceInterval < 1)
+    ) {
+      throw new Error("Recurrence interval must be a positive integer");
+    }
+
+    if (
+      args.recurrenceCount !== undefined &&
+      (!Number.isInteger(args.recurrenceCount) || args.recurrenceCount < 1)
+    ) {
+      throw new Error("Recurrence count must be a positive integer");
+    }
+
+    if (
+      args.recurrenceEndDate !== undefined &&
+      args.recurrenceEndDate !== "" &&
+      !/^\\d{4}-\\d{2}-\\d{2}$/.test(args.recurrenceEndDate)
+    ) {
+      throw new Error("Invalid recurrence end date");
+    }
+
+    if (args.recurring) {
+      if (!args.recurrenceType) {
+        throw new Error("Recurring tasks need a recurrence type");
+      }
+
+      if (args.recurrenceInterval === undefined) {
+        throw new Error("Recurring tasks need a recurrence interval");
+      }
+    }
+
     await ctx.db.patch(args.id, {
-      title: args.title,
+      title,
       notes: args.notes,
       priority: args.priority,
       contexts: args.contexts,
-
       recurring: args.recurring,
-
       recurrenceType: args.recurrenceType,
-
       recurrenceInterval: args.recurrenceInterval,
-
       recurrenceCount: args.recurrenceCount,
-
       recurrenceDays: args.recurrenceDays,
-
       recurrenceEndDate: args.recurrenceEndDate,
       projectId: args.projectId,
     });
   },
 });
 
-// ✅ TOGGLE COMPLETE
+// TOGGLE COMPLETE
 export const toggleComplete = mutation({
   args: {
     id: v.id("tasks"),
@@ -263,17 +325,13 @@ export const toggleComplete = mutation({
       throw new Error("Task not found");
     }
 
-    // Make sure the user owns this task
     if (task.userId !== identity.subject) {
       throw new Error("Unauthorized");
     }
 
     const completing = !task.completed;
 
-    // ------------------------------------------------
     // UNCOMPLETE TASK
-    // ------------------------------------------------
-
     if (!completing) {
       await ctx.db.patch(args.id, {
         completed: false,
@@ -283,10 +341,7 @@ export const toggleComplete = mutation({
       return;
     }
 
-    // ------------------------------------------------
     // NORMAL / NON-RECURRING TASK
-    // ------------------------------------------------
-
     if (!task.recurring || !task.recurrenceType) {
       await ctx.db.patch(args.id, {
         completed: true,
@@ -296,10 +351,7 @@ export const toggleComplete = mutation({
       return;
     }
 
-    // ------------------------------------------------
     // CHECK REPEAT COUNT
-    // ------------------------------------------------
-
     if (task.recurrenceCount !== undefined && task.recurrenceCount <= 0) {
       await ctx.db.patch(args.id, {
         completed: true,
@@ -309,20 +361,14 @@ export const toggleComplete = mutation({
       return;
     }
 
-    // ------------------------------------------------
     // CALCULATE NEXT OCCURRENCE
-    // ------------------------------------------------
-
     const nextDate = calculateNextOccurrence(
       task.date ?? new Date().toISOString(),
       task.recurrenceType,
       task.recurrenceInterval ?? 1,
     );
 
-    // ------------------------------------------------
     // CHECK END DATE
-    // ------------------------------------------------
-
     if (
       task.recurrenceEndDate &&
       new Date(nextDate) > new Date(`${task.recurrenceEndDate}T23:59:59.999Z`)
@@ -335,54 +381,31 @@ export const toggleComplete = mutation({
       return;
     }
 
-    // ------------------------------------------------
     // CALCULATE REMAINING REPEATS
-    // ------------------------------------------------
-
     const remainingRepeats =
       task.recurrenceCount !== undefined ? task.recurrenceCount - 1 : undefined;
 
-    // ------------------------------------------------
     // CREATE NEXT OCCURRENCE
-    // ------------------------------------------------
-
     await ctx.db.insert("tasks", {
       userId: task.userId,
-
       title: task.title,
-
       status: "scheduled",
-
       date: nextDate,
-
       completed: false,
-
       notes: task.notes,
-
       priority: task.priority,
       contexts: task.contexts,
-
       recurring: true,
-
       recurrenceType: task.recurrenceType,
-
       recurrenceInterval: task.recurrenceInterval,
-
       recurrenceCount: remainingRepeats,
-
       recurrenceDays: task.recurrenceDays,
-
       recurrenceEndDate: task.recurrenceEndDate,
-
       projectId: task.projectId,
-
       createdAt: Date.now(),
     });
 
-    // ------------------------------------------------
     // MARK CURRENT TASK AS COMPLETED
-    // ------------------------------------------------
-
     await ctx.db.patch(args.id, {
       completed: true,
       completedAt: Date.now(),
@@ -390,7 +413,7 @@ export const toggleComplete = mutation({
   },
 });
 
-// ✅ DELETE TASK
+// DELETE TASK
 export const deleteTask = mutation({
   args: { id: v.id("tasks") },
 
@@ -407,7 +430,6 @@ export const deleteTask = mutation({
       return;
     }
 
-    // ✅ OWNER CHECK
     if (task.userId !== identity.subject) {
       throw new Error("Unauthorized");
     }

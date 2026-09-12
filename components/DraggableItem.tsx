@@ -1,14 +1,19 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+
+type DraggableTask = {
+  _id: string;
+};
 
 export default function DraggableItem({
   item,
   children,
 }: {
-  item: any;
-  children: React.ReactNode;
+  item: DraggableTask;
+  children: ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -26,7 +31,7 @@ export default function DraggableItem({
         transform: CSS.Translate.toString(transform),
         opacity: isDragging ? 0.3 : 1,
       }}
-      className={`flex items-center gap-2 w-full min-w-0 max-w-full overflow-hidden transition-all duration-150 ${
+      className={`flex w-full min-w-0 max-w-full items-center gap-2 overflow-hidden transition-all duration-150 ${
         isDragging ? "scale-95" : "scale-100"
       }`}
     >
@@ -34,13 +39,14 @@ export default function DraggableItem({
         {...listeners}
         {...attributes}
         onClick={(e) => e.stopPropagation()}
-        className="shrink-0 cursor-grab active:cursor-grabbing opacity-40 hover:opacity-100 transition text-xs"
+        className="shrink-0 cursor-grab text-xs opacity-40 transition hover:opacity-100 active:cursor-grabbing"
         aria-label="Drag task"
+        type="button"
       >
         ⋮⋮
       </button>
 
-      <div className="flex-1 min-w-0 overflow-hidden">{children}</div>
+      <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );
 }

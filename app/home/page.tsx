@@ -30,10 +30,10 @@ export default function InboxCard() {
     completed?: boolean;
     completedAt?: number;
     notes?: string;
-    priority?: string;
+    priority?: "low" | "medium" | "high";
     contexts?: string[];
     recurring?: boolean;
-    recurrenceType?: string;
+    recurrenceType?: "daily" | "weekly" | "monthly" | "yearly";
     recurrenceInterval?: number;
     recurrenceCount?: number;
     recurrenceDays?: string[];
@@ -64,7 +64,7 @@ export default function InboxCard() {
   );
   const [detailsTitle, setDetailsTitle] = useState("");
   const [detailsNotes, setDetailsNotes] = useState("");
-  const [detailsPriority, setDetailsPriority] = useState("medium");
+  const [detailsPriority, setDetailsPriority] = useState<"low" | "medium" | "high">("medium");
   const [detailsContexts, setDetailsContexts] = useState<string[]>([]);
   const [newContext, setNewContext] = useState("");
   const [activeContext, setActiveContext] = useState<string | null>(null);
@@ -72,7 +72,7 @@ export default function InboxCard() {
     Id<"projects"> | undefined
   >();
   const [detailsRecurring, setDetailsRecurring] = useState(false);
-  const [detailsRecurrenceType, setDetailsRecurrenceType] = useState("weekly");
+  const [detailsRecurrenceType, setDetailsRecurrenceType] = useState<"daily" | "weekly" | "monthly" | "yearly">("weekly");
   const [detailsRecurrenceInterval, setDetailsRecurrenceInterval] = useState(1);
   const [detailsRecurrenceCount, setDetailsRecurrenceCount] = useState<
     number | undefined
@@ -861,7 +861,7 @@ export default function InboxCard() {
                 <label className="text-sm text-zinc-400">Priority</label>
                 <select
                   value={detailsPriority}
-                  onChange={(e) => setDetailsPriority(e.target.value)}
+                  onChange={(e) => setDetailsPriority(e.target.value as "low" | "medium" | "high")}
                   className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2"
                 >
                   <option value="low">Low</option>
@@ -911,7 +911,7 @@ export default function InboxCard() {
                         }
                         className={`rounded-full border px-3 py-1 text-xs transition ${
                           selected
-                            ? "border-zinc-700 bg-zinc-900 text-zinc-950"
+                            ? "border-zinc-200 bg-zinc-100 text-zinc-950"
                             : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
                         }`}
                       >
@@ -975,7 +975,7 @@ export default function InboxCard() {
                       setDetailsRecurring(false);
                     } else {
                       setDetailsRecurring(true);
-                      setDetailsRecurrenceType(e.target.value);
+                      setDetailsRecurrenceType(e.target.value as "daily" | "weekly" | "monthly" | "yearly");
                     }
                   }}
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2"

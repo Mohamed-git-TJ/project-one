@@ -6,7 +6,6 @@ import ConvexClientProvider from "@/components/ConvexClientProvider";
 import {
   SidebarInset,
   SidebarProvider,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { MainSidebar } from "@/components/MainSidebar";
 
