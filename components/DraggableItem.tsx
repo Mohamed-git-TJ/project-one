@@ -11,9 +11,13 @@ type DraggableTask = {
 export default function DraggableItem({
   item,
   children,
+  completed,
+  onComplete,
 }: {
   item: DraggableTask;
   children: ReactNode;
+  completed?: boolean;
+  onComplete?: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
@@ -35,6 +39,7 @@ export default function DraggableItem({
         isDragging ? "scale-95" : "scale-100"
       }`}
     >
+      {/* DRAG HANDLE */}
       <button
         {...listeners}
         {...attributes}
@@ -46,6 +51,29 @@ export default function DraggableItem({
         ⋮⋮
       </button>
 
+      {/* COMPLETION CHECKBOX */}
+      {onComplete && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onComplete();
+          }}
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all ${
+            completed
+              ? "border-zinc-300 bg-zinc-100 text-zinc-950"
+              : "border-zinc-500 bg-transparent text-transparent hover:border-zinc-200"
+          }`}
+          title={completed ? "Mark incomplete" : "Mark complete"}
+          aria-label={completed ? "Mark incomplete" : "Mark complete"}
+        >
+          {completed && (
+            <span className="text-[11px] font-bold leading-none">✓</span>
+          )}
+        </button>
+      )}
+
+      {/* TASK CONTENT */}
       <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );

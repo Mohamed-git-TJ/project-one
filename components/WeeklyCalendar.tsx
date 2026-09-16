@@ -44,7 +44,11 @@ type CalendarTask = {
 
 type WeeklyCalendarProps = {
   items: CalendarTask[];
-  moveItem: (id: Id<"tasks">, status: "inbox" | "incubator" | "scheduled", date?: string) => Promise<void> | void;
+  moveItem: (
+    id: Id<"tasks">,
+    status: "inbox" | "incubator" | "scheduled",
+    date?: string,
+  ) => Promise<void> | void;
   completeItem: (id: Id<"tasks">) => Promise<void> | void;
   editingId: Id<"tasks"> | null;
   editingText: string;
@@ -112,9 +116,10 @@ function CalendarDay({
   const dayId = day.toDateString();
   const isExpanded = expandedDay === day.toISOString();
   const todayIso = new Date().toDateString();
+
   const isActive =
-    activeDay === dayId ||
-    (!activeDay && day.toDateString() === todayIso);
+    activeDay === dayId || (!activeDay && day.toDateString() === todayIso);
+
   const visibleItems = isExpanded ? dayItems : dayItems.slice(0, 3);
 
   return (
@@ -131,12 +136,12 @@ function CalendarDay({
       style={{
         pointerEvents: expandedDay && !isExpanded ? "none" : "auto",
       }}
-      className={`relative min-w-0 rounded-xl border p-1.5 transition-all duration-200 sm:p-2.5 ${
+      className={`relative min-w-0 overflow-hidden rounded-xl border p-1.5 transition-all duration-200 sm:p-2.5 ${
         isExpanded
           ? "fixed bottom-8 left-1/2 top-8 z-50 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 overflow-hidden rounded-2xl border-zinc-800 bg-zinc-950/80 p-5 shadow-2xl sm:p-6"
           : isActive
-            ? "min-h-[240px] border-zinc-700 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-100 sm:min-h-[270px]"
-            : "min-h-[210px] border-zinc-800 bg-zinc-950/80 sm:min-h-[240px]"
+            ? "min-h-[280px] border-zinc-700 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-100 sm:min-h-[300px]"
+            : "min-h-[250px] border-zinc-800 bg-zinc-950/80 sm:min-h-[270px]"
       } ${isOver ? "bg-zinc-900/70 ring-2 ring-zinc-300/60" : ""}`}
     >
       <button
@@ -147,9 +152,7 @@ function CalendarDay({
           setActiveDay(dayId);
         }}
         className={`w-full rounded-lg border p-2 transition hover:bg-zinc-800 sm:p-2.5 ${
-          isSelected
-            ? "border-zinc-700 bg-zinc-900/70"
-            : "border-transparent"
+          isSelected ? "border-zinc-700 bg-zinc-900/70" : "border-transparent"
         }`}
       >
         <div
@@ -159,6 +162,7 @@ function CalendarDay({
         >
           {format(day, "EEE")}
         </div>
+
         <div
           className={`mt-0.5 text-base font-semibold sm:text-lg ${
             isToday ? "text-zinc-100" : "text-zinc-500"
@@ -166,6 +170,7 @@ function CalendarDay({
         >
           {format(day, "d")}
         </div>
+
         <div className="mt-0.5 text-[9px] text-zinc-400 sm:text-[10px]">
           {dayItems.length} {dayItems.length === 1 ? "task" : "tasks"}
         </div>
@@ -188,7 +193,7 @@ function CalendarDay({
         className={`mt-2 space-y-1.5 text-left ${
           isExpanded
             ? "max-h-[calc(100vh-180px)] overflow-y-auto pr-1"
-            : ""
+            : "min-h-[120px]"
         }`}
         onClick={(e) => e.stopPropagation()}
       >
@@ -213,6 +218,7 @@ function CalendarDay({
                 onBlur={saveEdit}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") saveEdit();
+
                   if (e.key === "Escape") {
                     setEditingId(null);
                     setEditingText("");
@@ -226,7 +232,11 @@ function CalendarDay({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div>
-                        <DraggableItem item={item}>
+                        <DraggableItem
+                          item={item}
+                          completed={item.completed}
+                          onComplete={() => completeItem(item._id)}
+                        >
                           <span
                             onDoubleClick={() => {
                               setEditingId(item._id);
@@ -247,6 +257,7 @@ function CalendarDay({
                             >
                               {item.title}
                             </span>
+
                             {item.contexts && item.contexts.length > 0 && (
                               <span className="mt-0.5 flex flex-wrap gap-1">
                                 {item.contexts.map((context) => (
@@ -263,6 +274,7 @@ function CalendarDay({
                         </DraggableItem>
                       </div>
                     </TooltipTrigger>
+
                     {!isExpanded && (
                       <TooltipContent
                         side="top"
@@ -288,17 +300,7 @@ function CalendarDay({
               >
                 ⓘ
               </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  completeItem(item._id);
-                }}
-                className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-zinc-100"
-                title={item.completed ? "Mark incomplete" : "Complete"}
-              >
-                {item.completed ? "↺" : "✓"}
-              </button>
+
               <button
                 type="button"
                 onClick={(e) => {
@@ -351,6 +353,7 @@ export default function WeeklyCalendar({
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   const searchMatches = calendarSearch.trim()
@@ -366,9 +369,11 @@ export default function WeeklyCalendar({
 
   const goToMatch = (index: number) => {
     const match = searchMatches[index];
+
     if (!match?.date) return;
 
     const matchDate = new Date(match.date);
+
     setCurrentDate(matchDate);
     setSelectedDate(matchDate);
     setActiveDay(matchDate.toDateString());
@@ -418,6 +423,7 @@ export default function WeeklyCalendar({
             }`}
             onClick={() => {
               const today = new Date();
+
               setCurrentDate(today);
               setSelectedDate(today);
               setActiveDay(today.toDateString());
@@ -483,6 +489,7 @@ export default function WeeklyCalendar({
             onClick={() => {
               const nextIndex =
                 searchIndex === 0 ? searchMatches.length - 1 : searchIndex - 1;
+
               setSearchIndex(nextIndex);
               goToMatch(nextIndex);
             }}
@@ -497,6 +504,7 @@ export default function WeeklyCalendar({
             onClick={() => {
               const nextIndex =
                 searchIndex === searchMatches.length - 1 ? 0 : searchIndex + 1;
+
               setSearchIndex(nextIndex);
               goToMatch(nextIndex);
             }}
@@ -514,7 +522,8 @@ export default function WeeklyCalendar({
         </div>
       )}
 
-      <div className="grid grid-cols-7 gap-1.5 overflow-x-auto text-center sm:gap-2 lg:gap-3">
+      {/* WEEKLY DAYS */}
+      <div className="grid grid-cols-7 gap-2 text-center lg:gap-3">
         {days.map((day) => (
           <CalendarDay
             key={day.toString()}
@@ -540,6 +549,7 @@ export default function WeeklyCalendar({
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-3 text-[11px] text-zinc-400">
         <span>Selected: {format(selectedDate, "EEEE, MMMM d, yyyy")}</span>
+
         <span>Drag tasks between days, Inbox and Incubator.</span>
       </div>
     </Card>

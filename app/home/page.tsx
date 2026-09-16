@@ -64,7 +64,9 @@ export default function InboxCard() {
   );
   const [detailsTitle, setDetailsTitle] = useState("");
   const [detailsNotes, setDetailsNotes] = useState("");
-  const [detailsPriority, setDetailsPriority] = useState<"low" | "medium" | "high">("medium");
+  const [detailsPriority, setDetailsPriority] = useState<
+    "low" | "medium" | "high"
+  >("medium");
   const [detailsContexts, setDetailsContexts] = useState<string[]>([]);
   const [newContext, setNewContext] = useState("");
   const [activeContext, setActiveContext] = useState<string | null>(null);
@@ -72,7 +74,9 @@ export default function InboxCard() {
     Id<"projects"> | undefined
   >();
   const [detailsRecurring, setDetailsRecurring] = useState(false);
-  const [detailsRecurrenceType, setDetailsRecurrenceType] = useState<"daily" | "weekly" | "monthly" | "yearly">("weekly");
+  const [detailsRecurrenceType, setDetailsRecurrenceType] = useState<
+    "daily" | "weekly" | "monthly" | "yearly"
+  >("weekly");
   const [detailsRecurrenceInterval, setDetailsRecurrenceInterval] = useState(1);
   const [detailsRecurrenceCount, setDetailsRecurrenceCount] = useState<
     number | undefined
@@ -280,7 +284,11 @@ export default function InboxCard() {
           <Tooltip>
             <TooltipTrigger asChild>
               <div className="min-w-0 flex-1">
-                <DraggableItem item={item}>
+                <DraggableItem
+                  item={item}
+                  completed={item.completed}
+                  onComplete={() => completeItem(item._id)}
+                >
                   <div
                     onDoubleClick={() => {
                       setEditingId(item._id);
@@ -297,6 +305,7 @@ export default function InboxCard() {
                     >
                       {item.title}
                     </div>
+
                     {item.contexts && item.contexts.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {item.contexts.map((context) => (
@@ -313,6 +322,7 @@ export default function InboxCard() {
                 </DraggableItem>
               </div>
             </TooltipTrigger>
+
             <TooltipContent side="top" className="max-w-[260px] text-sm">
               {item.title}
             </TooltipContent>
@@ -330,6 +340,7 @@ export default function InboxCard() {
       )}
 
       <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
+        {/* DETAILS */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -340,16 +351,8 @@ export default function InboxCard() {
         >
           ⓘ
         </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            completeItem(item._id);
-          }}
-          className="rounded p-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-          title={item.completed ? "Mark incomplete" : "Complete"}
-        >
-          {item.completed ? "↺" : "✓"}
-        </button>
+
+        {/* MOVE TO INBOX */}
         {type === "today" && (
           <button
             onClick={(e) => {
@@ -362,6 +365,8 @@ export default function InboxCard() {
             ↩
           </button>
         )}
+
+        {/* DELETE */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -698,108 +703,6 @@ export default function InboxCard() {
             </div>
           </div>
 
-          {/* ==================== PROJECTS + CONTEXTS ==================== */}
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            <Card className="border-zinc-800 bg-zinc-950/80 shadow-2xl">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold">
-                    Projects
-                  </CardTitle>
-                  <span className="text-[11px] text-zinc-400">
-                    {projects.length} active
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-1">
-                <div className="flex gap-2">
-                  <input
-                    value={projectInput}
-                    onChange={(e) => setProjectInput(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter" && projectInput.trim()) {
-                        await createProject({ name: projectInput.trim() });
-                        setProjectInput("");
-                      }
-                    }}
-                    placeholder="Create a project..."
-                    className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs outline-none transition focus:border-zinc-600 focus:bg-zinc-900"
-                  />
-                  <button
-                    onClick={async () => {
-                      if (!projectInput.trim()) return;
-                      await createProject({ name: projectInput.trim() });
-                      setProjectInput("");
-                    }}
-                    className="rounded-lg bg-zinc-100 px-3 py-2 text-xs font-medium text-zinc-950 transition hover:bg-zinc-200"
-                  >
-                    Add
-                  </button>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {projects.map((project) => (
-                    <span
-                      key={project._id}
-                      className="rounded-full border border-zinc-700 bg-zinc-900 px-2.5 py-1 text-[10px] text-zinc-400"
-                    >
-                      {project.name}
-                    </span>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-zinc-800 bg-zinc-950/80 shadow-2xl">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold">
-                    Contexts
-                  </CardTitle>
-                  {activeContext && (
-                    <button
-                      onClick={() => setActiveContext(null)}
-                      className="text-[10px] text-zinc-400 hover:text-zinc-100"
-                    >
-                      Clear filter
-                    </button>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="pt-1">
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    onClick={() => setActiveContext(null)}
-                    className={`rounded-full border px-2.5 py-1 text-[10px] transition ${
-                      activeContext === null
-                        ? "border-zinc-200 bg-zinc-100 text-zinc-950"
-                        : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
-                    }`}
-                  >
-                    All
-                  </button>
-                  {allContexts.map((context) => (
-                    <button
-                      key={context}
-                      onClick={() => setActiveContext(context)}
-                      className={`rounded-full border px-2.5 py-1 text-[10px] transition ${
-                        activeContext === context
-                          ? "border-zinc-200 bg-zinc-100 text-zinc-950"
-                          : "border-zinc-700 bg-zinc-900 text-zinc-400 hover:border-zinc-600"
-                      }`}
-                    >
-                      {context}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-3 text-[10px] text-zinc-400">
-                  {activeContext
-                    ? `Showing tasks in ${activeContext}.`
-                    : "Filter your system by where or how you can act."}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
           {/* ==================== CALENDAR ==================== */}
           <div className="mt-4">
             <WeeklyCalendar
@@ -813,6 +716,119 @@ export default function InboxCard() {
               saveEdit={saveEdit}
               openTaskDetails={openTaskDetails}
             />
+          </div>
+          {/* ==================== PROJECTS + CONTEXTS ==================== */}
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {/* PROJECTS */}
+            <Card className="border-zinc-800/80 bg-zinc-950/60 shadow-lg">
+              <CardHeader className="px-4 pb-2 pt-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-medium text-zinc-300">
+                    Projects
+                  </CardTitle>
+
+                  <span className="text-[10px] text-zinc-500">
+                    {projects.length} active
+                  </span>
+                </div>
+              </CardHeader>
+
+              <CardContent className="px-4 pb-3 pt-0">
+                <div className="flex gap-2">
+                  <input
+                    value={projectInput}
+                    onChange={(e) => setProjectInput(e.target.value)}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter" && projectInput.trim()) {
+                        await createProject({ name: projectInput.trim() });
+                        setProjectInput("");
+                      }
+                    }}
+                    placeholder="Create a project..."
+                    className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-zinc-900/80 px-2.5 py-1.5 text-[11px] text-zinc-200 outline-none transition placeholder:text-zinc-500 focus:border-zinc-700"
+                  />
+
+                  <button
+                    onClick={async () => {
+                      if (!projectInput.trim()) return;
+                      await createProject({ name: projectInput.trim() });
+                      setProjectInput("");
+                    }}
+                    className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-100"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {projects.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {projects.map((project) => (
+                      <span
+                        key={project._id}
+                        className="rounded-full border border-zinc-800 bg-zinc-900/70 px-2 py-0.5 text-[9px] text-zinc-500"
+                      >
+                        {project.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* CONTEXTS */}
+            <Card className="border-zinc-800/80 bg-zinc-950/60 shadow-lg">
+              <CardHeader className="px-4 pb-2 pt-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xs font-medium text-zinc-300">
+                    Contexts
+                  </CardTitle>
+
+                  {activeContext && (
+                    <button
+                      onClick={() => setActiveContext(null)}
+                      className="text-[10px] text-zinc-500 transition hover:text-zinc-200"
+                    >
+                      Clear filter
+                    </button>
+                  )}
+                </div>
+              </CardHeader>
+
+              <CardContent className="px-4 pb-3 pt-0">
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    onClick={() => setActiveContext(null)}
+                    className={`rounded-full border px-2 py-0.5 text-[9px] transition ${
+                      activeContext === null
+                        ? "border-zinc-200 bg-zinc-100 text-zinc-950"
+                        : "border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                    }`}
+                  >
+                    All
+                  </button>
+
+                  {allContexts.map((context) => (
+                    <button
+                      key={context}
+                      onClick={() => setActiveContext(context)}
+                      className={`rounded-full border px-2 py-0.5 text-[9px] transition ${
+                        activeContext === context
+                          ? "border-zinc-200 bg-zinc-100 text-zinc-950"
+                          : "border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                      }`}
+                    >
+                      {context}
+                    </button>
+                  ))}
+                </div>
+
+                {activeContext && (
+                  <p className="mt-2 text-[9px] text-zinc-500">
+                    Showing tasks in {activeContext}.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
@@ -861,7 +877,11 @@ export default function InboxCard() {
                 <label className="text-sm text-zinc-400">Priority</label>
                 <select
                   value={detailsPriority}
-                  onChange={(e) => setDetailsPriority(e.target.value as "low" | "medium" | "high")}
+                  onChange={(e) =>
+                    setDetailsPriority(
+                      e.target.value as "low" | "medium" | "high",
+                    )
+                  }
                   className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2"
                 >
                   <option value="low">Low</option>
@@ -975,7 +995,13 @@ export default function InboxCard() {
                       setDetailsRecurring(false);
                     } else {
                       setDetailsRecurring(true);
-                      setDetailsRecurrenceType(e.target.value as "daily" | "weekly" | "monthly" | "yearly");
+                      setDetailsRecurrenceType(
+                        e.target.value as
+                          | "daily"
+                          | "weekly"
+                          | "monthly"
+                          | "yearly",
+                      );
                     }
                   }}
                   className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2"
