@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useState,
+  type Dispatch,
+  type SetStateAction,
+  type KeyboardEvent,
+} from "react";
 import type { Id } from "../convex/_generated/dataModel";
 import {
   addWeeks,
@@ -50,6 +55,12 @@ type WeeklyCalendarProps = {
     date?: string,
   ) => Promise<void> | void;
   completeItem: (id: Id<"tasks">) => Promise<void> | void;
+  deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
+  addTask: (
+    title: string,
+    status: "inbox" | "incubator" | "scheduled",
+    date?: string,
+  ) => Promise<void> | void;
   editingId: Id<"tasks"> | null;
   editingText: string;
   setEditingId: Dispatch<SetStateAction<Id<"tasks"> | null>>;
@@ -61,6 +72,11 @@ type WeeklyCalendarProps = {
 type CalendarDayProps = {
   day: Date;
   items: CalendarTask[];
+  addTask: (
+    title: string,
+    status: "inbox" | "incubator" | "scheduled",
+    date?: string,
+  ) => Promise<void> | void;
   editingId: Id<"tasks"> | null;
   editingText: string;
   setEditingId: Dispatch<SetStateAction<Id<"tasks"> | null>>;
@@ -68,6 +84,7 @@ type CalendarDayProps = {
   saveEdit: () => Promise<void> | void;
   openTaskDetails: (task: CalendarTask) => void;
   completeItem: (id: Id<"tasks">) => Promise<void> | void;
+  deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
   moveItem: (
     id: Id<"tasks">,
     status: "inbox" | "incubator" | "scheduled",
@@ -84,6 +101,7 @@ type CalendarDayProps = {
 function CalendarDay({
   day,
   items,
+  addTask,
   editingId,
   editingText,
   setEditingId,
@@ -91,6 +109,7 @@ function CalendarDay({
   saveEdit,
   openTaskDetails,
   completeItem,
+  deleteItem,
   moveItem,
   selectedDate,
   setSelectedDate,
@@ -105,6 +124,26 @@ function CalendarDay({
 
   const isToday = isSameDay(day, new Date());
   const isSelected = isSameDay(day, selectedDate);
+  const [isAddingTask, setIsAddingTask] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [isSavingTask, setIsSavingTask] = useState(false);
+
+  const handleAddTask = async () => {
+    const title = newTaskTitle.trim();
+
+    if (!title || isSavingTask) return;
+
+    try {
+      setIsSavingTask(true);
+
+      await addTask(title, "scheduled", day.toISOString());
+
+      setNewTaskTitle("");
+      setIsAddingTask(false);
+    } finally {
+      setIsSavingTask(false);
+    }
+  };
 
   const dayItems = items.filter(
     (item) =>
@@ -175,6 +214,67 @@ function CalendarDay({
           {dayItems.length} {dayItems.length === 1 ? "task" : "tasks"}
         </div>
       </button>
+      {!isAddingTask ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsAddingTask(true);
+          }}
+          className="mt-1 w-full rounded-md border border-dashed border-zinc-800 px-2 py-1 text-[9px] font-medium text-zinc-500 transition hover:border-zinc-600 hover:bg-zinc-900 hover:text-zinc-100 sm:text-[10px]"
+        >
+          + Add task
+        </button>
+      ) : (
+        <div
+          className="mt-1 rounded-md border border-zinc-800 bg-zinc-900/80 p-1.5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            autoFocus
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            onKeyDown={async (e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                await handleAddTask();
+              }
+
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setNewTaskTitle("");
+                setIsAddingTask(false);
+              }
+            }}
+            placeholder="New task..."
+            disabled={isSavingTask}
+            className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[10px] text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-zinc-500 sm:text-xs"
+          />
+
+          <div className="mt-1 flex items-center justify-between gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setNewTaskTitle("");
+                setIsAddingTask(false);
+              }}
+              disabled={isSavingTask}
+              className="rounded px-1.5 py-0.5 text-[9px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
+            >
+              Cancel
+            </button>
+
+            <button
+              type="button"
+              onClick={handleAddTask}
+              disabled={!newTaskTitle.trim() || isSavingTask}
+              className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-950 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isSavingTask ? "Adding..." : "Add"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {isExpanded && (
         <button
@@ -291,6 +391,7 @@ function CalendarDay({
             <div className="absolute right-1 top-1 flex gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 type="button"
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   openTaskDetails(item);
@@ -303,6 +404,7 @@ function CalendarDay({
 
               <button
                 type="button"
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
                   moveItem(item._id, "inbox");
@@ -311,6 +413,19 @@ function CalendarDay({
                 title="Move to Inbox"
               >
                 ↩
+              </button>
+
+              <button
+                type="button"
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteItem(item._id);
+                }}
+                className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-red-400"
+                title="Delete task"
+              >
+                ×
               </button>
             </div>
           </div>
@@ -337,6 +452,8 @@ export default function WeeklyCalendar({
   items,
   moveItem,
   completeItem,
+  deleteItem,
+  addTask,
   editingId,
   editingText,
   setEditingId,
@@ -529,6 +646,7 @@ export default function WeeklyCalendar({
             key={day.toString()}
             day={day}
             items={items}
+            addTask={addTask}
             editingId={editingId}
             editingText={editingText}
             setEditingId={setEditingId}
@@ -536,6 +654,7 @@ export default function WeeklyCalendar({
             saveEdit={saveEdit}
             openTaskDetails={openTaskDetails}
             completeItem={completeItem}
+            deleteItem={deleteItem}
             moveItem={moveItem}
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}

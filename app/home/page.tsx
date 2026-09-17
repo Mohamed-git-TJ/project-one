@@ -706,9 +706,24 @@ export default function InboxCard() {
           {/* ==================== CALENDAR ==================== */}
           <div className="mt-4">
             <WeeklyCalendar
-              items={filteredItems}
+              items={items}
               moveItem={moveItem}
               completeItem={completeItem}
+              deleteItem={(id) => deleteTaskMutation({ id })}
+              addTask={async (title, status, date) => {
+                const id = await createTask({
+                  title,
+                  status,
+                });
+
+                if (date) {
+                  await updateTask({
+                    id,
+                    status: "scheduled",
+                    date,
+                  });
+                }
+              }}
               editingId={editingId}
               editingText={editingText}
               setEditingId={setEditingId}
