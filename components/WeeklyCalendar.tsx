@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useState,
-  type Dispatch,
-  type SetStateAction,
-  type KeyboardEvent,
-} from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import type { Id } from "../convex/_generated/dataModel";
 import {
   addWeeks,
@@ -94,7 +89,6 @@ type CalendarDayProps = {
   setSelectedDate: Dispatch<SetStateAction<Date>>;
   activeDay: string | null;
   setActiveDay: Dispatch<SetStateAction<string | null>>;
-  expandedDay: string | null;
   setExpandedDay: Dispatch<SetStateAction<string | null>>;
 };
 
@@ -115,7 +109,6 @@ function CalendarDay({
   setSelectedDate,
   activeDay,
   setActiveDay,
-  expandedDay,
   setExpandedDay,
 }: CalendarDayProps) {
   const { setNodeRef, isOver } = useDroppable({
@@ -153,13 +146,13 @@ function CalendarDay({
   );
 
   const dayId = day.toDateString();
-  const isExpanded = expandedDay === day.toISOString();
+
   const todayIso = new Date().toDateString();
 
   const isActive =
     activeDay === dayId || (!activeDay && day.toDateString() === todayIso);
 
-  const visibleItems = isExpanded ? dayItems : dayItems.slice(0, 3);
+  const visibleItems = dayItems.slice(0, 3);
 
   return (
     <div
@@ -170,17 +163,12 @@ function CalendarDay({
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        if (!expandedDay) setExpandedDay(day.toISOString());
-      }}
-      style={{
-        pointerEvents: expandedDay && !isExpanded ? "none" : "auto",
+        setExpandedDay(day.toISOString());
       }}
       className={`relative min-w-0 overflow-hidden rounded-xl border p-1.5 transition-all duration-200 sm:p-2.5 ${
-        isExpanded
-          ? "fixed bottom-8 left-1/2 top-8 z-50 w-[calc(100%-2rem)] max-w-4xl -translate-x-1/2 overflow-hidden rounded-2xl border-zinc-800 bg-zinc-950/80 p-5 shadow-2xl sm:p-6"
-          : isActive
-            ? "min-h-[280px] border-zinc-700 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-100 sm:min-h-[300px]"
-            : "min-h-[250px] border-zinc-800 bg-zinc-950/80 sm:min-h-[270px]"
+        isActive
+          ? "min-h-[280px] border-zinc-700 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-100 sm:min-h-[300px]"
+          : "min-h-[250px] border-zinc-800 bg-zinc-950/80 sm:min-h-[270px]"
       } ${isOver ? "bg-zinc-900/70 ring-2 ring-zinc-300/60" : ""}`}
     >
       <button
@@ -276,25 +264,8 @@ function CalendarDay({
         </div>
       )}
 
-      {isExpanded && (
-        <button
-          type="button"
-          className="absolute right-4 top-4 z-50 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-400 hover:text-zinc-100"
-          onClick={(e) => {
-            e.stopPropagation();
-            setExpandedDay(null);
-          }}
-        >
-          ✕
-        </button>
-      )}
-
       <div
-        className={`mt-2 space-y-1.5 text-left ${
-          isExpanded
-            ? "max-h-[calc(100vh-180px)] overflow-y-auto pr-1"
-            : "min-h-[120px]"
-        }`}
+        className="mt-2 min-h-[120px] space-y-1.5 text-left"
         onClick={(e) => e.stopPropagation()}
       >
         {dayItems.length === 0 && (
@@ -348,13 +319,7 @@ function CalendarDay({
                                 : "text-zinc-500"
                             }`}
                           >
-                            <span
-                              className={`block truncate ${
-                                isExpanded
-                                  ? "whitespace-normal"
-                                  : "whitespace-nowrap"
-                              }`}
-                            >
+                            <span className="block truncate whitespace-nowrap">
                               {item.title}
                             </span>
 
@@ -375,20 +340,18 @@ function CalendarDay({
                       </div>
                     </TooltipTrigger>
 
-                    {!isExpanded && (
-                      <TooltipContent
-                        side="top"
-                        className="max-w-[260px] text-sm"
-                      >
-                        {item.title}
-                      </TooltipContent>
-                    )}
+                    <TooltipContent
+                      side="top"
+                      className="max-w-[260px] text-sm"
+                    >
+                      {item.title}
+                    </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               </div>
             )}
 
-            <div className="absolute right-1 top-1 flex gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -401,7 +364,6 @@ function CalendarDay({
               >
                 ⓘ
               </button>
-
               <button
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -414,7 +376,6 @@ function CalendarDay({
               >
                 ↩
               </button>
-
               <button
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -431,7 +392,7 @@ function CalendarDay({
           </div>
         ))}
 
-        {!isExpanded && dayItems.length > 3 && (
+        {dayItems.length > 3 && (
           <button
             type="button"
             onClick={(e) => {
@@ -443,6 +404,212 @@ function CalendarDay({
             +{dayItems.length - 3} more
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function DayDetailModal({
+  day,
+  items,
+  onClose,
+  addTask,
+  completeItem,
+  deleteItem,
+  moveItem,
+  openTaskDetails,
+}: {
+  day: Date;
+  items: CalendarTask[];
+  onClose: () => void;
+  addTask: (
+    title: string,
+    status: "inbox" | "incubator" | "scheduled",
+    date?: string,
+  ) => Promise<void> | void;
+  completeItem: (id: Id<"tasks">) => Promise<void> | void;
+  deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
+  moveItem: (
+    id: Id<"tasks">,
+    status: "inbox" | "incubator" | "scheduled",
+    date?: string,
+  ) => Promise<void> | void;
+  openTaskDetails: (task: CalendarTask) => void;
+}) {
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [isSavingTask, setIsSavingTask] = useState(false);
+
+  const handleAddTask = async () => {
+    const title = newTaskTitle.trim();
+
+    if (!title || isSavingTask) return;
+
+    try {
+      setIsSavingTask(true);
+      await addTask(title, "scheduled", day.toISOString());
+      setNewTaskTitle("");
+    } finally {
+      setIsSavingTask(false);
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4 sm:px-6">
+          <div>
+            <h2 className="text-lg font-semibold text-zinc-100 sm:text-xl">
+              {format(day, "EEEE")}
+            </h2>
+
+            <p className="mt-0.5 text-sm text-zinc-500">
+              {format(day, "MMMM d, yyyy")} · {items.length}{" "}
+              {items.length === 1 ? "task" : "tasks"}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-100"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Tasks */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          {items.length === 0 ? (
+            <div className="flex min-h-[180px] items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 text-sm text-zinc-500">
+              Nothing scheduled for this day
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {items.map((item) => (
+                <div
+                  key={item._id}
+                  className={`group flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-3 transition hover:border-zinc-700 hover:bg-zinc-900 ${
+                    item.completed ? "opacity-60" : ""
+                  }`}
+                >
+                  <DraggableItem
+                    item={item}
+                    completed={item.completed}
+                    onComplete={() => completeItem(item._id)}
+                  >
+                    <div className="min-w-0 flex-1 text-left">
+                      <div
+                        onDoubleClick={() => openTaskDetails(item)}
+                        className={`break-words text-sm leading-5 ${
+                          item.completed
+                            ? "text-zinc-500 line-through"
+                            : "text-zinc-200"
+                        }`}
+                      >
+                        {item.title}
+                      </div>
+
+                      {item.contexts && item.contexts.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {item.contexts.map((context) => (
+                            <span
+                              key={context}
+                              className="rounded-full bg-zinc-950 px-2 py-0.5 text-[10px] text-zinc-400"
+                            >
+                              {context}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </DraggableItem>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClose();
+                        openTaskDetails(item);
+                      }}
+                      className="rounded-md p-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
+                      title="Details"
+                    >
+                      ⓘ
+                    </button>
+
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        moveItem(item._id, "inbox");
+                      }}
+                      className="rounded-md p-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
+                      title="Move to Inbox"
+                    >
+                      ↩
+                    </button>
+
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteItem(item._id);
+                      }}
+                      className="rounded-md p-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
+                      title="Delete task"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Add task */}
+        <div className="border-t border-zinc-800 p-4 sm:p-5">
+          <div className="flex gap-2">
+            <input
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  await handleAddTask();
+                }
+
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  onClose();
+                }
+              }}
+              placeholder="Add a task for this day..."
+              disabled={isSavingTask}
+              className="min-w-0 flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-zinc-600"
+            />
+
+            <button
+              type="button"
+              onClick={handleAddTask}
+              disabled={!newTaskTitle.trim() || isSavingTask}
+              className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isSavingTask ? "Adding..." : "Add"}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -472,6 +639,16 @@ export default function WeeklyCalendar({
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  const expandedDate = expandedDay ? new Date(expandedDay) : null;
+
+  const expandedDayItems = expandedDate
+    ? items.filter(
+        (item) =>
+          item.status === "scheduled" &&
+          item.date &&
+          isSameDay(new Date(item.date), expandedDate),
+      )
+    : [];
 
   const searchMatches = calendarSearch.trim()
     ? items.filter(
@@ -512,13 +689,6 @@ export default function WeeklyCalendar({
 
   return (
     <Card className="relative mt-4 border-zinc-800 bg-zinc-950/80 p-5 shadow-sm sm:p-6">
-      {expandedDay && (
-        <div
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
-          onClick={() => setExpandedDay(null)}
-        />
-      )}
-
       <div className="relative mb-5 flex items-center justify-between gap-3">
         <div className="flex items-center gap-1.5">
           <Button
@@ -660,11 +830,22 @@ export default function WeeklyCalendar({
             setSelectedDate={setSelectedDate}
             activeDay={activeDay}
             setActiveDay={setActiveDay}
-            expandedDay={expandedDay}
             setExpandedDay={setExpandedDay}
           />
         ))}
       </div>
+      {expandedDate && (
+        <DayDetailModal
+          day={expandedDate}
+          items={expandedDayItems}
+          onClose={() => setExpandedDay(null)}
+          addTask={addTask}
+          completeItem={completeItem}
+          deleteItem={deleteItem}
+          moveItem={moveItem}
+          openTaskDetails={openTaskDetails}
+        />
+      )}
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-3 text-[11px] text-zinc-400">
         <span>Selected: {format(selectedDate, "EEEE, MMMM d, yyyy")}</span>
