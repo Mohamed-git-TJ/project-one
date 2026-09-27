@@ -323,7 +323,7 @@ export default function InboxCard() {
     <div
       key={item._id}
       onClick={() => {
-        setSelectedTask(item);
+        openTaskDetails(item);
         setHighlightedTask(item._id);
       }}
       className={`group flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 transition hover:border-zinc-600 hover:bg-zinc-800 ${
@@ -353,6 +353,7 @@ export default function InboxCard() {
               <div className="min-w-0 flex-1">
                 <DraggableItem
                   item={item}
+                  dragId={`${type}-${item._id}`}
                   completed={item.completed}
                   onComplete={() => completeItem(item._id)}
                 >
@@ -465,8 +466,10 @@ export default function InboxCard() {
 
         if (!over) return;
 
-        const itemId = active.id as Id<"tasks">;
+        const itemId = active.data.current?.taskId as Id<"tasks"> | undefined;
         const overId = over.id.toString();
+
+        if (!itemId) return;
 
         const draggedItem = items.find((item) => item._id === itemId);
 

@@ -13,17 +13,20 @@ export default function DraggableItem({
   children,
   completed,
   onComplete,
+  dragId,
 }: {
   item: DraggableTask;
   children: ReactNode;
   completed?: boolean;
   onComplete?: () => void;
+  dragId?: string;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
-      id: item._id,
+      id: dragId ?? item._id,
       data: {
         type: "task",
+        taskId: item._id,
         item,
       },
     });
@@ -39,7 +42,6 @@ export default function DraggableItem({
         isDragging ? "scale-95" : "scale-100"
       }`}
     >
-      {/* DRAG HANDLE */}
       <button
         {...listeners}
         {...attributes}
@@ -54,7 +56,6 @@ export default function DraggableItem({
         ⋮⋮
       </button>
 
-      {/* COMPLETION CHECKBOX */}
       {onComplete && (
         <button
           type="button"
@@ -76,7 +77,6 @@ export default function DraggableItem({
         </button>
       )}
 
-      {/* TASK CONTENT */}
       <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );

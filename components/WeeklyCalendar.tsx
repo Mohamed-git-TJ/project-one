@@ -336,6 +336,7 @@ function CalendarDay({
                       <div>
                         <DraggableItem
                           item={item}
+                          dragId={`calendar-${item._id}`}
                           completed={item.completed}
                           onComplete={() => completeItem(item._id)}
                         >
@@ -541,6 +542,7 @@ function DayDetailModal({
                 >
                   <DraggableItem
                     item={item}
+                    dragId={`calendar-modal-${item._id}`}
                     completed={item.completed}
                     onComplete={() => completeItem(item._id)}
                   >
