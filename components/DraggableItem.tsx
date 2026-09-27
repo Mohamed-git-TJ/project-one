@@ -44,6 +44,9 @@ export default function DraggableItem({
         {...listeners}
         {...attributes}
         onClick={(e) => e.stopPropagation()}
+        style={{
+          touchAction: "none",
+        }}
         className="shrink-0 cursor-grab text-xs opacity-40 transition hover:opacity-100 active:cursor-grabbing"
         aria-label="Drag task"
         type="button"

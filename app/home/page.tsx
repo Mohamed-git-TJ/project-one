@@ -4,10 +4,13 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
-import { useDroppable } from "@dnd-kit/core";
 import DraggableItem from "@/components/DraggableItem";
-import { DndContext, DragOverlay } from "@dnd-kit/core";
-import { pointerWithin, rectIntersection } from "@dnd-kit/core";
+import {
+  DndContext,
+  DragOverlay,
+  useDroppable,
+  closestCorners,
+} from "@dnd-kit/core";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -19,30 +22,82 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+type Status = "inbox" | "incubator" | "scheduled";
+
+type Item = {
+  _id: Id<"tasks">;
+  title: string;
+  status: Status;
+  date?: string;
+  completed?: boolean;
+  completedAt?: number;
+  notes?: string;
+  priority?: "low" | "medium" | "high";
+  contexts?: string[];
+  recurring?: boolean;
+  recurrenceType?: "daily" | "weekly" | "monthly" | "yearly";
+  recurrenceInterval?: number;
+  recurrenceCount?: number;
+  recurrenceDays?: string[];
+  recurrenceEndDate?: string;
+  projectId?: Id<"projects">;
+};
+
+function TodayDropZone({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "today-home",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-xl transition-all ${
+        isOver ? "ring-2 ring-zinc-300/60 bg-zinc-900/90" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function InboxDropZone({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "inbox",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-xl transition-all ${
+        isOver ? "ring-2 ring-zinc-300/60 bg-zinc-900/90" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function IncubatorDropZone({ children }: { children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: "incubator",
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-xl transition-all ${
+        isOver ? "ring-2 ring-zinc-300/60 bg-zinc-900/90" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function InboxCard() {
-  type Status = "inbox" | "incubator" | "scheduled";
-
-  type Item = {
-    _id: Id<"tasks">;
-    title: string;
-    status: Status;
-    date?: string;
-    completed?: boolean;
-    completedAt?: number;
-    notes?: string;
-    priority?: "low" | "medium" | "high";
-    contexts?: string[];
-    recurring?: boolean;
-    recurrenceType?: "daily" | "weekly" | "monthly" | "yearly";
-    recurrenceInterval?: number;
-    recurrenceCount?: number;
-    recurrenceDays?: string[];
-    recurrenceEndDate?: string;
-    projectId?: Id<"projects">;
-  };
-
   const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
   const projects = useQuery(api.projects.getProjects) || [];
+
   const createTask = useMutation(api.tasks.createTask);
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTaskMutation = useMutation(api.tasks.deleteTask);
@@ -62,6 +117,7 @@ export default function InboxCard() {
   const [highlightedTask, setHighlightedTask] = useState<Id<"tasks"> | null>(
     null,
   );
+
   const [detailsTitle, setDetailsTitle] = useState("");
   const [detailsNotes, setDetailsNotes] = useState("");
   const [detailsPriority, setDetailsPriority] = useState<
@@ -70,20 +126,26 @@ export default function InboxCard() {
   const [detailsContexts, setDetailsContexts] = useState<string[]>([]);
   const [newContext, setNewContext] = useState("");
   const [activeContext, setActiveContext] = useState<string | null>(null);
+
   const [detailsProjectId, setDetailsProjectId] = useState<
     Id<"projects"> | undefined
   >();
+
   const [detailsRecurring, setDetailsRecurring] = useState(false);
   const [detailsRecurrenceType, setDetailsRecurrenceType] = useState<
     "daily" | "weekly" | "monthly" | "yearly"
   >("weekly");
+
   const [detailsRecurrenceInterval, setDetailsRecurrenceInterval] = useState(1);
+
   const [detailsRecurrenceCount, setDetailsRecurrenceCount] = useState<
     number | undefined
   >();
+
   const [detailsRecurrenceDays, setDetailsRecurrenceDays] = useState<string[]>(
     [],
   );
+
   const [detailsRecurrenceEndDate, setDetailsRecurrenceEndDate] = useState("");
   const [focusInboxInput, setFocusInboxInput] = useState(false);
 
@@ -91,11 +153,19 @@ export default function InboxCard() {
 
   const addItem = async (title: string, status: Status) => {
     if (!title.trim()) return;
-    await createTask({ title: title.trim(), status });
+
+    await createTask({
+      title: title.trim(),
+      status,
+    });
   };
 
   const moveItem = async (id: Id<"tasks">, status: Status, date?: string) => {
-    await updateTask({ id, status, date });
+    await updateTask({
+      id,
+      status,
+      date,
+    });
   };
 
   const deleteItem = React.useCallback(
@@ -115,7 +185,12 @@ export default function InboxCard() {
 
   const saveEdit = async () => {
     if (!editingId || !editingText.trim()) return;
-    await editTask({ id: editingId, title: editingText.trim() });
+
+    await editTask({
+      id: editingId,
+      title: editingText.trim(),
+    });
+
     setEditingId(null);
     setEditingText("");
   };
@@ -172,6 +247,7 @@ export default function InboxCard() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
+
       if (
         target.tagName === "INPUT" ||
         target.tagName === "TEXTAREA" ||
@@ -201,6 +277,7 @@ export default function InboxCard() {
     };
 
     window.addEventListener("keydown", handleKeyDown);
+
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedTask, deleteItem]);
 
@@ -216,6 +293,7 @@ export default function InboxCard() {
     : items;
 
   const inboxItems = filteredItems.filter((item) => item.status === "inbox");
+
   const incubatorItems = filteredItems.filter(
     (item) => item.status === "incubator",
   );
@@ -226,6 +304,7 @@ export default function InboxCard() {
     a.getDate() === b.getDate();
 
   const today = new Date();
+
   const todayItems = filteredItems.filter(
     (item) =>
       item.status === "scheduled" &&
@@ -234,21 +313,8 @@ export default function InboxCard() {
   );
 
   const todayCompleted = todayItems.filter((item) => item.completed).length;
-  const todayPending = todayItems.length - todayCompleted;
 
-  const { setNodeRef: setInboxRef, isOver: isInboxOver } = useDroppable({
-    id: "inbox",
-  });
-  const { setNodeRef: setIncubatorRef, isOver: isIncubatorOver } = useDroppable(
-    {
-      id: "incubator",
-    },
-  );
-  const { setNodeRef: setTodayHomeRef, isOver: isTodayHomeOver } = useDroppable(
-    {
-      id: "today-home",
-    },
-  );
+  const todayPending = todayItems.length - todayCompleted;
 
   const renderCompactTask = (
     item: Item,
@@ -272,6 +338,7 @@ export default function InboxCard() {
           onBlur={saveEdit}
           onKeyDown={(e) => {
             if (e.key === "Enter") saveEdit();
+
             if (e.key === "Escape") {
               setEditingId(null);
               setEditingText("");
@@ -340,7 +407,6 @@ export default function InboxCard() {
       )}
 
       <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-        {/* DETAILS */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -352,7 +418,6 @@ export default function InboxCard() {
           ⓘ
         </button>
 
-        {/* MOVE TO INBOX */}
         {type === "today" && (
           <button
             onClick={(e) => {
@@ -366,7 +431,6 @@ export default function InboxCard() {
           </button>
         )}
 
-        {/* DELETE */}
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -383,54 +447,92 @@ export default function InboxCard() {
 
   return (
     <DndContext
-      collisionDetection={(args) => {
-        const pointerCollisions = pointerWithin(args);
-        return pointerCollisions.length > 0
-          ? pointerCollisions
-          : rectIntersection(args);
-      }}
+      collisionDetection={closestCorners}
       onDragStart={(event) => {
         const dragged = items.find((item) => item._id === event.active.id);
-        if (dragged) setActiveItem(dragged);
+
+        if (dragged) {
+          setActiveItem(dragged);
+        }
       }}
-      onDragEnd={(event) => {
-        const { active, over } = event;
+      onDragCancel={() => {
         setActiveItem(null);
+      }}
+      onDragEnd={async (event) => {
+        const { active, over } = event;
+
+        setActiveItem(null);
+
         if (!over) return;
 
         const itemId = active.id as Id<"tasks">;
         const overId = over.id.toString();
-        const draggedItem = items.find((item) => item._id === itemId);
-        const isDate = !isNaN(Date.parse(overId));
 
-        if (overId === "next-week") {
-          if (!draggedItem?.date) return;
-          const nextWeekDate = new Date(draggedItem.date);
-          nextWeekDate.setDate(nextWeekDate.getDate() + 7);
-          moveItem(itemId, "scheduled", nextWeekDate.toISOString());
-          return;
-        }
-        if (overId === "previous-week") {
-          if (!draggedItem?.date) return;
-          const previousWeekDate = new Date(draggedItem.date);
-          previousWeekDate.setDate(previousWeekDate.getDate() - 7);
-          moveItem(itemId, "scheduled", previousWeekDate.toISOString());
-          return;
-        }
-        if (overId === "today" || overId === "today-home") {
-          moveItem(itemId, "scheduled", new Date().toISOString());
-          return;
-        }
-        if (isDate) {
-          moveItem(itemId, "scheduled", overId);
-          return;
-        }
+        const draggedItem = items.find((item) => item._id === itemId);
+
+        if (!draggedItem) return;
+
+        // =========================
+        // MOVE TO INBOX
+        // =========================
         if (overId === "inbox") {
-          moveItem(itemId, "inbox");
+          await moveItem(itemId, "inbox");
           return;
         }
+
+        // =========================
+        // MOVE TO INCUBATOR
+        // =========================
         if (overId === "incubator") {
-          moveItem(itemId, "incubator");
+          await moveItem(itemId, "incubator");
+          return;
+        }
+
+        // =========================
+        // MOVE TO TODAY
+        // =========================
+        if (overId === "today" || overId === "today-home") {
+          await moveItem(itemId, "scheduled", new Date().toISOString());
+          return;
+        }
+
+        // =========================
+        // MOVE ONE WEEK FORWARD
+        // =========================
+        if (overId === "next-week") {
+          if (!draggedItem.date) return;
+
+          const nextWeekDate = new Date(draggedItem.date);
+
+          nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+
+          await moveItem(itemId, "scheduled", nextWeekDate.toISOString());
+
+          return;
+        }
+
+        // =========================
+        // MOVE ONE WEEK BACK
+        // =========================
+        if (overId === "previous-week") {
+          if (!draggedItem.date) return;
+
+          const previousWeekDate = new Date(draggedItem.date);
+
+          previousWeekDate.setDate(previousWeekDate.getDate() - 7);
+
+          await moveItem(itemId, "scheduled", previousWeekDate.toISOString());
+
+          return;
+        }
+
+        // =========================
+        // MOVE TO CALENDAR DATE
+        // =========================
+        const parsedDate = new Date(overId);
+
+        if (!Number.isNaN(parsedDate.getTime())) {
+          await moveItem(itemId, "scheduled", parsedDate.toISOString());
         }
       }}
     >
@@ -451,10 +553,12 @@ export default function InboxCard() {
           <header className="mb-6 flex items-center justify-between">
             <div>
               <div className="text-xl font-semibold tracking-tight">MoGTD</div>
+
               <div className="mt-0.5 text-xs text-zinc-400">
                 Your personal system for getting things done.
               </div>
             </div>
+
             <button
               onClick={() => {
                 setExpanded("inbox");
@@ -469,237 +573,290 @@ export default function InboxCard() {
           {/* ==================== TOP ROW ==================== */}
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)]">
             {/* ==================== TODAY ==================== */}
-            <Card
-              ref={setTodayHomeRef}
-              className={`border-zinc-800 bg-zinc-950/80 shadow-2xl transition-all ${
-                isTodayHomeOver ? "ring-2 ring-zinc-300/60 bg-zinc-900/90" : ""
-              }`}
-            >
-              <CardHeader className="border-b border-zinc-800 pb-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-lg font-semibold">
-                      Today
-                    </CardTitle>
-                    <p className="mt-1 text-xs text-zinc-400">
-                      {today.toLocaleDateString(undefined, {
-                        weekday: "long",
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
-                    </p>
-                    <p className="mt-1 text-xs text-zinc-400">
-                      Make today count.
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-medium text-zinc-500">
-                      {todayItems.length} tasks
-                    </div>
-                    <div className="mt-1 text-[11px] text-zinc-400">
-                      {todayCompleted} done · {todayPending} remaining
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="p-4">
-                {todayItems.length === 0 ? (
-                  <div className="flex min-h-[230px] flex-col items-center justify-center text-center">
-                    <div className="mb-3 text-2xl text-zinc-500">○</div>
-                    <p className="text-sm font-medium text-zinc-500">
-                      Nothing scheduled for today
-                    </p>
-                    <p className="mt-1 max-w-xs text-xs leading-5 text-zinc-400">
-                      Drag a task to today from the calendar, or capture
-                      something new.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {todayItems.map((item) => renderCompactTask(item, "today"))}
-                  </div>
-                )}
+            <TodayDropZone>
+              <Card className="border-zinc-800 bg-zinc-950/80 shadow-2xl">
+                <CardHeader className="border-b border-zinc-800 pb-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <CardTitle className="text-lg font-semibold">
+                        Today
+                      </CardTitle>
 
-                <div className="mt-4 flex items-center justify-between border-t border-zinc-800 pt-3">
-                  <span className="text-[11px] text-zinc-400">
-                    Focus on what matters today.
-                  </span>
-                  <button
-                    onClick={() => {
-                      const todayTask = todayItems.find(
-                        (item) => !item.completed,
-                      );
-                      if (todayTask) openTaskDetails(todayTask);
-                    }}
-                    disabled={todayPending === 0}
-                    className="text-xs font-medium text-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                  >
-                    Review today →
-                  </button>
-                </div>
-              </CardContent>
-            </Card>
+                      <p className="mt-1 text-xs text-zinc-400">
+                        {today.toLocaleDateString(undefined, {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+
+                      <p className="mt-1 text-xs text-zinc-400">
+                        Make today count.
+                      </p>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-sm font-medium text-zinc-500">
+                        {todayItems.length} tasks
+                      </div>
+
+                      <div className="mt-1 text-[11px] text-zinc-400">
+                        {todayCompleted} done · {todayPending} remaining
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="p-4">
+                  {todayItems.length === 0 ? (
+                    <div className="flex min-h-[230px] flex-col items-center justify-center text-center">
+                      <div className="mb-3 text-2xl text-zinc-500">○</div>
+
+                      <p className="text-sm font-medium text-zinc-500">
+                        Nothing scheduled for today
+                      </p>
+
+                      <p className="mt-1 max-w-xs text-xs leading-5 text-zinc-400">
+                        Drag a task to today from the calendar, or capture
+                        something new.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {todayItems.map((item) =>
+                        renderCompactTask(item, "today"),
+                      )}
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex items-center justify-between border-t border-zinc-800 pt-3">
+                    <span className="text-[11px] text-zinc-400">
+                      Focus on what matters today.
+                    </span>
+
+                    <button
+                      onClick={() => {
+                        const todayTask = todayItems.find(
+                          (item) => !item.completed,
+                        );
+
+                        if (todayTask) {
+                          openTaskDetails(todayTask);
+                        }
+                      }}
+                      disabled={todayPending === 0}
+                      className="text-xs font-medium text-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Review today →
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TodayDropZone>
 
             {/* ==================== SIDE STACK ==================== */}
             <div className="grid gap-4">
               {/* INBOX */}
-              <Card
-                ref={setInboxRef}
-                className={`border-zinc-800 bg-zinc-950/80 shadow-2xl transition ${
-                  isInboxOver ? "ring-2 ring-zinc-300/60" : ""
-                } ${expanded === "inbox" ? "fixed inset-8 z-50 overflow-hidden shadow-2xl" : ""}`}
-                onClick={(e) => {
-                  if ((e.target as HTMLElement).closest("button")) return;
-                  if (!expanded) setExpanded("inbox");
-                }}
-              >
-                <CardHeader className="relative pb-2">
-                  {expanded === "inbox" && (
-                    <button
-                      className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpanded(null);
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <div className="flex items-center justify-between pr-8">
-                    <div>
-                      <CardTitle className="text-sm font-semibold">
-                        Inbox
-                      </CardTitle>
-                      <p className="mt-1 text-[11px] text-zinc-400">
-                        Quick capture & loose tasks
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
-                      {inboxItems.length}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent
-                  className="pt-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Textarea
-                    autoFocus={focusInboxInput && expanded === "inbox"}
-                    className="min-h-16 resize-none border-zinc-700 bg-zinc-900 text-sm shadow-none focus-visible:ring-zinc-300/60"
-                    placeholder="Capture something..."
-                    value={inboxInput}
-                    onChange={(e) => setInboxInput(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
+              <InboxDropZone>
+                <Card
+                  className={`border-zinc-800 bg-zinc-950/80 shadow-2xl ${
+                    expanded === "inbox"
+                      ? "fixed inset-8 z-50 overflow-hidden shadow-2xl"
+                      : ""
+                  }`}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("button")) {
+                      return;
+                    }
 
-                        await addItem(inboxInput, "inbox");
-                        setInboxInput("");
-                      }
-                    }}
-                  />
-                  <div
-                    className={`${expanded === "inbox" ? "mt-4 max-h-[70vh]" : "mt-3 max-h-28"} space-y-2 overflow-y-auto pr-1`}
-                  >
-                    {inboxItems.length === 0 ? (
-                      <p className="py-2 text-xs text-zinc-400">
-                        Your inbox is clear.
-                      </p>
-                    ) : (
-                      inboxItems.map((item) => renderCompactTask(item, "inbox"))
+                    if (!expanded) {
+                      setExpanded("inbox");
+                    }
+                  }}
+                >
+                  <CardHeader className="relative pb-2">
+                    {expanded === "inbox" && (
+                      <button
+                        className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpanded(null);
+                        }}
+                      >
+                        ✕
+                      </button>
                     )}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setExpanded(expanded === "inbox" ? null : "inbox");
-                      setFocusInboxInput(true);
-                    }}
-                    className="mt-3 text-xs font-medium text-zinc-400 hover:text-zinc-100"
+
+                    <div className="flex items-center justify-between pr-8">
+                      <div>
+                        <CardTitle className="text-sm font-semibold">
+                          Inbox
+                        </CardTitle>
+
+                        <p className="mt-1 text-[11px] text-zinc-400">
+                          Quick capture & loose tasks
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
+                        {inboxItems.length}
+                      </span>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent
+                    className="pt-2"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {expanded === "inbox" ? "Close" : "View all →"}
-                  </button>
-                </CardContent>
-              </Card>
+                    <Textarea
+                      autoFocus={focusInboxInput && expanded === "inbox"}
+                      className="min-h-16 resize-none border-zinc-700 bg-zinc-900 text-sm shadow-none focus-visible:ring-zinc-300/60"
+                      placeholder="Capture something..."
+                      value={inboxInput}
+                      onChange={(e) => setInboxInput(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+
+                          await addItem(inboxInput, "inbox");
+
+                          setInboxInput("");
+                        }
+                      }}
+                    />
+
+                    <div
+                      className={`${
+                        expanded === "inbox"
+                          ? "mt-4 max-h-[70vh]"
+                          : "mt-3 max-h-28"
+                      } space-y-2 overflow-y-auto pr-1`}
+                    >
+                      {inboxItems.length === 0 ? (
+                        <p className="py-2 text-xs text-zinc-400">
+                          Your inbox is clear.
+                        </p>
+                      ) : (
+                        inboxItems.map((item) =>
+                          renderCompactTask(item, "inbox"),
+                        )
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        setExpanded(expanded === "inbox" ? null : "inbox");
+
+                        setFocusInboxInput(true);
+                      }}
+                      className="mt-3 text-xs font-medium text-zinc-400 hover:text-zinc-100"
+                    >
+                      {expanded === "inbox" ? "Close" : "View all →"}
+                    </button>
+                  </CardContent>
+                </Card>
+              </InboxDropZone>
 
               {/* INCUBATOR */}
-              <Card
-                ref={setIncubatorRef}
-                className={`border-zinc-800 bg-zinc-950/80 shadow-2xl transition ${
-                  isIncubatorOver ? "ring-2 ring-zinc-300/60" : ""
-                } ${expanded === "incubator" ? "fixed inset-8 z-50 overflow-hidden shadow-2xl" : ""}`}
-                onClick={(e) => {
-                  if ((e.target as HTMLElement).closest("button")) return;
-                  if (!expanded) setExpanded("incubator");
-                }}
-              >
-                <CardHeader className="relative pb-2">
-                  {expanded === "incubator" && (
-                    <button
-                      className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpanded(null);
-                      }}
-                    >
-                      ✕
-                    </button>
-                  )}
-                  <div className="flex items-center justify-between pr-8">
-                    <div>
-                      <CardTitle className="text-sm font-semibold">
-                        Incubator
-                      </CardTitle>
-                      <p className="mt-1 text-[11px] text-zinc-400">
-                        Ideas for later
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
-                      {incubatorItems.length}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent
-                  className="pt-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Textarea
-                    className="min-h-16 resize-none border-zinc-700 bg-zinc-900 text-sm shadow-none focus-visible:ring-zinc-300/60"
-                    placeholder="Add long-term idea..."
-                    value={incubatorInput}
-                    onChange={(e) => setIncubatorInput(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-
-                        await addItem(incubatorInput, "incubator");
-                        setIncubatorInput("");
-                      }
-                    }}
-                  />
-                  <div
-                    className={`${expanded === "incubator" ? "mt-4 max-h-[70vh]" : "mt-3 max-h-28"} space-y-2 overflow-y-auto pr-1`}
-                  >
-                    {incubatorItems.length === 0 ? (
-                      <p className="py-2 text-xs text-zinc-400">
-                        Nothing incubating yet.
-                      </p>
-                    ) : (
-                      incubatorItems.map((item) =>
-                        renderCompactTask(item, "incubator"),
-                      )
-                    )}
-                  </div>
-                  <button
-                    onClick={() =>
-                      setExpanded(expanded === "incubator" ? null : "incubator")
+              <IncubatorDropZone>
+                <Card
+                  className={`border-zinc-800 bg-zinc-950/80 shadow-2xl ${
+                    expanded === "incubator"
+                      ? "fixed inset-8 z-50 overflow-hidden shadow-2xl"
+                      : ""
+                  }`}
+                  onClick={(e) => {
+                    if ((e.target as HTMLElement).closest("button")) {
+                      return;
                     }
-                    className="mt-3 text-xs font-medium text-zinc-400 hover:text-zinc-100"
+
+                    if (!expanded) {
+                      setExpanded("incubator");
+                    }
+                  }}
+                >
+                  <CardHeader className="relative pb-2">
+                    {expanded === "incubator" && (
+                      <button
+                        className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpanded(null);
+                        }}
+                      >
+                        ✕
+                      </button>
+                    )}
+
+                    <div className="flex items-center justify-between pr-8">
+                      <div>
+                        <CardTitle className="text-sm font-semibold">
+                          Incubator
+                        </CardTitle>
+
+                        <p className="mt-1 text-[11px] text-zinc-400">
+                          Ideas for later
+                        </p>
+                      </div>
+
+                      <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
+                        {incubatorItems.length}
+                      </span>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent
+                    className="pt-2"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    {expanded === "incubator" ? "Close" : "View all →"}
-                  </button>
-                </CardContent>
-              </Card>
+                    <Textarea
+                      className="min-h-16 resize-none border-zinc-700 bg-zinc-900 text-sm shadow-none focus-visible:ring-zinc-300/60"
+                      placeholder="Add long-term idea..."
+                      value={incubatorInput}
+                      onChange={(e) => setIncubatorInput(e.target.value)}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+
+                          await addItem(incubatorInput, "incubator");
+
+                          setIncubatorInput("");
+                        }
+                      }}
+                    />
+
+                    <div
+                      className={`${
+                        expanded === "incubator"
+                          ? "mt-4 max-h-[70vh]"
+                          : "mt-3 max-h-28"
+                      } space-y-2 overflow-y-auto pr-1`}
+                    >
+                      {incubatorItems.length === 0 ? (
+                        <p className="py-2 text-xs text-zinc-400">
+                          Nothing incubating yet.
+                        </p>
+                      ) : (
+                        incubatorItems.map((item) =>
+                          renderCompactTask(item, "incubator"),
+                        )
+                      )}
+                    </div>
+
+                    <button
+                      onClick={() =>
+                        setExpanded(
+                          expanded === "incubator" ? null : "incubator",
+                        )
+                      }
+                      className="mt-3 text-xs font-medium text-zinc-400 hover:text-zinc-100"
+                    >
+                      {expanded === "incubator" ? "Close" : "View all →"}
+                    </button>
+                  </CardContent>
+                </Card>
+              </IncubatorDropZone>
             </div>
           </div>
 
@@ -732,6 +889,7 @@ export default function InboxCard() {
               openTaskDetails={openTaskDetails}
             />
           </div>
+
           {/* ==================== PROJECTS + CONTEXTS ==================== */}
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {/* PROJECTS */}
@@ -755,7 +913,10 @@ export default function InboxCard() {
                     onChange={(e) => setProjectInput(e.target.value)}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter" && projectInput.trim()) {
-                        await createProject({ name: projectInput.trim() });
+                        await createProject({
+                          name: projectInput.trim(),
+                        });
+
                         setProjectInput("");
                       }
                     }}
@@ -766,7 +927,11 @@ export default function InboxCard() {
                   <button
                     onClick={async () => {
                       if (!projectInput.trim()) return;
-                      await createProject({ name: projectInput.trim() });
+
+                      await createProject({
+                        name: projectInput.trim(),
+                      });
+
                       setProjectInput("");
                     }}
                     className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-100"
@@ -854,6 +1019,7 @@ export default function InboxCard() {
           <Card className="flex max-h-[90vh] flex-col border-zinc-800 bg-zinc-950/80 shadow-2xl">
             <CardHeader className="relative border-b border-zinc-800">
               <CardTitle>Task Details</CardTitle>
+
               <button
                 className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
                 onClick={() => {
@@ -868,6 +1034,7 @@ export default function InboxCard() {
             <CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
               <div>
                 <label className="text-sm text-zinc-400">Title</label>
+
                 <input
                   value={detailsTitle}
                   onChange={(e) => setDetailsTitle(e.target.value)}
@@ -877,19 +1044,23 @@ export default function InboxCard() {
 
               <div>
                 <label className="text-sm text-zinc-400">Notes</label>
+
                 <Textarea
                   value={detailsNotes}
                   onChange={(e) => setDetailsNotes(e.target.value)}
                   placeholder="Add notes..."
                   className="mt-1 min-h-[140px] border-zinc-700 bg-zinc-900"
                   onKeyDown={(e) => {
-                    if (e.ctrlKey && e.key === "Enter") saveTaskDetails();
+                    if (e.ctrlKey && e.key === "Enter") {
+                      saveTaskDetails();
+                    }
                   }}
                 />
               </div>
 
               <div>
                 <label className="text-sm text-zinc-400">Priority</label>
+
                 <select
                   value={detailsPriority}
                   onChange={(e) =>
@@ -907,6 +1078,7 @@ export default function InboxCard() {
 
               <div>
                 <label className="text-sm text-zinc-400">Project</label>
+
                 <select
                   value={detailsProjectId ?? ""}
                   onChange={(e) =>
@@ -919,6 +1091,7 @@ export default function InboxCard() {
                   className="mt-1 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2"
                 >
                   <option value="">No project</option>
+
                   {projects.map((project) => (
                     <option key={project._id} value={project._id}>
                       {project.name}
@@ -930,9 +1103,11 @@ export default function InboxCard() {
               {/* ==================== CONTEXTS ==================== */}
               <div className="space-y-2">
                 <label className="text-sm text-zinc-400">Contexts</label>
+
                 <div className="flex flex-wrap gap-2">
                   {allContexts.map((context) => {
                     const selected = detailsContexts.includes(context);
+
                     return (
                       <button
                         key={context}
@@ -962,35 +1137,46 @@ export default function InboxCard() {
                     onChange={(e) => setNewContext(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key !== "Enter") return;
+
                       e.preventDefault();
+
                       const value = newContext.trim();
+
                       if (!value) return;
+
                       const context = value.startsWith("@")
                         ? value
                         : `@${value}`;
+
                       setDetailsContexts((current) =>
                         current.includes(context)
                           ? current
                           : [...current, context],
                       );
+
                       setNewContext("");
                     }}
                     placeholder="Add custom context..."
                     className="flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none"
                   />
+
                   <button
                     type="button"
                     onClick={() => {
                       const value = newContext.trim();
+
                       if (!value) return;
+
                       const context = value.startsWith("@")
                         ? value
                         : `@${value}`;
+
                       setDetailsContexts((current) =>
                         current.includes(context)
                           ? current
                           : [...current, context],
                       );
+
                       setNewContext("");
                     }}
                     className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm hover:bg-zinc-800"
@@ -1003,6 +1189,7 @@ export default function InboxCard() {
               {/* ==================== REPEAT ==================== */}
               <div className="space-y-3">
                 <label className="text-sm text-zinc-400">Repeat</label>
+
                 <select
                   value={detailsRecurring ? detailsRecurrenceType : "none"}
                   onChange={(e) => {
@@ -1010,6 +1197,7 @@ export default function InboxCard() {
                       setDetailsRecurring(false);
                     } else {
                       setDetailsRecurring(true);
+
                       setDetailsRecurrenceType(
                         e.target.value as
                           | "daily"
@@ -1032,6 +1220,7 @@ export default function InboxCard() {
                   <>
                     <div>
                       <label className="text-sm text-zinc-400">Every</label>
+
                       <input
                         type="number"
                         min="1"
@@ -1043,6 +1232,7 @@ export default function InboxCard() {
                         }
                         className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2"
                       />
+
                       <span className="text-xs text-zinc-400">
                         Example: every 2 weeks
                       </span>
@@ -1052,12 +1242,14 @@ export default function InboxCard() {
                       <label className="text-sm text-zinc-400">
                         Number of repeats
                       </label>
+
                       <input
                         type="number"
                         min="1"
                         value={detailsRecurrenceCount ?? ""}
                         onChange={(e) => {
                           const value = e.target.value;
+
                           setDetailsRecurrenceCount(
                             value === ""
                               ? undefined
@@ -1072,6 +1264,7 @@ export default function InboxCard() {
                       <label className="text-sm text-zinc-400">
                         End date (optional)
                       </label>
+
                       <input
                         type="date"
                         value={detailsRecurrenceEndDate}
@@ -1096,14 +1289,17 @@ export default function InboxCard() {
                 <button
                   onClick={async () => {
                     const taskId = selectedTask._id;
+
                     setSelectedTask(null);
                     setHighlightedTask(null);
+
                     await deleteItem(taskId);
                   }}
                   className="text-sm text-red-500 hover:text-red-600"
                 >
                   Delete
                 </button>
+
                 <button
                   onClick={saveTaskDetails}
                   className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
@@ -1123,6 +1319,7 @@ export default function InboxCard() {
             <div className="text-sm font-medium text-zinc-100">
               {activeItem.title}
             </div>
+
             <div className="mt-1 text-xs capitalize text-zinc-400">
               {activeItem.status}
             </div>

@@ -44,51 +44,74 @@ type CalendarTask = {
 
 type WeeklyCalendarProps = {
   items: CalendarTask[];
+
   moveItem: (
     id: Id<"tasks">,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
   ) => Promise<void> | void;
+
   completeItem: (id: Id<"tasks">) => Promise<void> | void;
+
   deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
+
   addTask: (
     title: string,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
   ) => Promise<void> | void;
+
   editingId: Id<"tasks"> | null;
   editingText: string;
+
   setEditingId: Dispatch<SetStateAction<Id<"tasks"> | null>>;
+
   setEditingText: Dispatch<SetStateAction<string>>;
+
   saveEdit: () => Promise<void> | void;
+
   openTaskDetails: (task: CalendarTask) => void;
 };
 
 type CalendarDayProps = {
   day: Date;
   items: CalendarTask[];
+
   addTask: (
     title: string,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
   ) => Promise<void> | void;
+
   editingId: Id<"tasks"> | null;
   editingText: string;
+
   setEditingId: Dispatch<SetStateAction<Id<"tasks"> | null>>;
+
   setEditingText: Dispatch<SetStateAction<string>>;
+
   saveEdit: () => Promise<void> | void;
+
   openTaskDetails: (task: CalendarTask) => void;
+
   completeItem: (id: Id<"tasks">) => Promise<void> | void;
+
   deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
+
   moveItem: (
     id: Id<"tasks">,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
   ) => Promise<void> | void;
+
   selectedDate: Date;
+
   setSelectedDate: Dispatch<SetStateAction<Date>>;
+
   activeDay: string | null;
+
   setActiveDay: Dispatch<SetStateAction<string | null>>;
+
   setExpandedDay: Dispatch<SetStateAction<string | null>>;
 };
 
@@ -116,9 +139,13 @@ function CalendarDay({
   });
 
   const isToday = isSameDay(day, new Date());
+
   const isSelected = isSameDay(day, selectedDate);
+
   const [isAddingTask, setIsAddingTask] = useState(false);
+
   const [newTaskTitle, setNewTaskTitle] = useState("");
+
   const [isSavingTask, setIsSavingTask] = useState(false);
 
   const handleAddTask = async () => {
@@ -175,6 +202,7 @@ function CalendarDay({
         type="button"
         onClick={(e) => {
           e.stopPropagation();
+
           setSelectedDate(day);
           setActiveDay(dayId);
         }}
@@ -202,6 +230,7 @@ function CalendarDay({
           {dayItems.length} {dayItems.length === 1 ? "task" : "tasks"}
         </div>
       </button>
+
       {!isAddingTask ? (
         <button
           type="button"
@@ -288,7 +317,9 @@ function CalendarDay({
                 onChange={(e) => setEditingText(e.target.value)}
                 onBlur={saveEdit}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") saveEdit();
+                  if (e.key === "Enter") {
+                    saveEdit();
+                  }
 
                   if (e.key === "Escape") {
                     setEditingId(null);
@@ -298,7 +329,7 @@ function CalendarDay({
                 className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-1 py-0.5 text-xs outline-none"
               />
             ) : (
-              <div className="relative min-w-0 flex-1">
+              <div className="min-w-0 flex-1">
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -351,7 +382,7 @@ function CalendarDay({
               </div>
             )}
 
-            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="ml-auto flex shrink-0 items-center gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -364,11 +395,13 @@ function CalendarDay({
               >
                 ⓘ
               </button>
+
               <button
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
+
                   moveItem(item._id, "inbox");
                 }}
                 className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-zinc-100"
@@ -376,6 +409,7 @@ function CalendarDay({
               >
                 ↩
               </button>
+
               <button
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -422,21 +456,27 @@ function DayDetailModal({
   day: Date;
   items: CalendarTask[];
   onClose: () => void;
+
   addTask: (
     title: string,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
   ) => Promise<void> | void;
+
   completeItem: (id: Id<"tasks">) => Promise<void> | void;
+
   deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
+
   moveItem: (
     id: Id<"tasks">,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
   ) => Promise<void> | void;
+
   openTaskDetails: (task: CalendarTask) => void;
 }) {
   const [newTaskTitle, setNewTaskTitle] = useState("");
+
   const [isSavingTask, setIsSavingTask] = useState(false);
 
   const handleAddTask = async () => {
@@ -446,7 +486,9 @@ function DayDetailModal({
 
     try {
       setIsSavingTask(true);
+
       await addTask(title, "scheduled", day.toISOString());
+
       setNewTaskTitle("");
     } finally {
       setIsSavingTask(false);
@@ -462,7 +504,6 @@ function DayDetailModal({
         className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4 sm:px-6">
           <div>
             <h2 className="text-lg font-semibold text-zinc-100 sm:text-xl">
@@ -484,7 +525,6 @@ function DayDetailModal({
           </button>
         </div>
 
-        {/* Tasks */}
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
           {items.length === 0 ? (
             <div className="flex min-h-[180px] items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 text-sm text-zinc-500">
@@ -537,6 +577,7 @@ function DayDetailModal({
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
+
                         onClose();
                         openTaskDetails(item);
                       }}
@@ -551,6 +592,7 @@ function DayDetailModal({
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
+
                         moveItem(item._id, "inbox");
                       }}
                       className="rounded-md p-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
@@ -564,6 +606,7 @@ function DayDetailModal({
                       onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => {
                         e.stopPropagation();
+
                         deleteItem(item._id);
                       }}
                       className="rounded-md p-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
@@ -578,7 +621,6 @@ function DayDetailModal({
           )}
         </div>
 
-        {/* Add task */}
         <div className="border-t border-zinc-800 p-4 sm:p-5">
           <div className="flex gap-2">
             <input
@@ -629,16 +671,25 @@ export default function WeeklyCalendar({
   openTaskDetails,
 }: WeeklyCalendarProps) {
   const [activeDay, setActiveDay] = useState<string | null>(null);
+
   const [showSearch, setShowSearch] = useState(false);
+
   const [calendarSearch, setCalendarSearch] = useState("");
+
   const [searchIndex, setSearchIndex] = useState(0);
+
   const [currentDate, setCurrentDate] = useState(new Date());
+
   const [selectedDate, setSelectedDate] = useState(new Date());
+
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
 
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
+  const weekStart = startOfWeek(currentDate, {
+    weekStartsOn: 1,
+  });
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
   const expandedDate = expandedDay ? new Date(expandedDay) : null;
 
   const expandedDayItems = expandedDate
@@ -778,6 +829,7 @@ export default function WeeklyCalendar({
                 searchIndex === 0 ? searchMatches.length - 1 : searchIndex - 1;
 
               setSearchIndex(nextIndex);
+
               goToMatch(nextIndex);
             }}
           >
@@ -793,6 +845,7 @@ export default function WeeklyCalendar({
                 searchIndex === searchMatches.length - 1 ? 0 : searchIndex + 1;
 
               setSearchIndex(nextIndex);
+
               goToMatch(nextIndex);
             }}
           >
@@ -834,6 +887,7 @@ export default function WeeklyCalendar({
           />
         ))}
       </div>
+
       {expandedDate && (
         <DayDetailModal
           day={expandedDate}
