@@ -306,7 +306,7 @@ function CalendarDay({
         {visibleItems.map((item) => (
           <div
             key={item._id}
-            className={`group relative flex items-center gap-1.5 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/70 px-1.5 py-1 text-[10px] transition hover:border-zinc-600 hover:bg-zinc-950 sm:gap-2 sm:px-2 sm:py-1.5 sm:text-xs ${
+            className={`group relative flex min-w-0 items-center overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/70 px-1.5 py-1 text-[10px] transition hover:border-zinc-600 hover:bg-zinc-950 sm:px-2 sm:py-1.5 sm:text-xs ${
               item.completed ? "opacity-55" : ""
             }`}
           >
@@ -329,11 +329,11 @@ function CalendarDay({
                 className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-1 py-0.5 text-xs outline-none"
               />
             ) : (
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div>
+                      <div className="min-w-0">
                         <DraggableItem
                           item={item}
                           dragId={`calendar-${item._id}`}
@@ -345,22 +345,22 @@ function CalendarDay({
                               setEditingId(item._id);
                               setEditingText(item.title);
                             }}
-                            className={`block min-w-0 text-left leading-4 ${
+                            className={`block min-w-0 max-w-full text-left leading-4 ${
                               item.completed
                                 ? "text-zinc-400 line-through"
                                 : "text-zinc-500"
                             }`}
                           >
-                            <span className="block truncate whitespace-nowrap">
+                            <span className="block min-w-0 max-w-full truncate whitespace-nowrap">
                               {item.title}
                             </span>
 
                             {item.contexts && item.contexts.length > 0 && (
-                              <span className="mt-0.5 flex flex-wrap gap-1">
+                              <span className="mt-0.5 flex min-w-0 max-w-full flex-wrap gap-1 overflow-hidden">
                                 {item.contexts.map((context) => (
                                   <span
                                     key={context}
-                                    className="rounded-full bg-zinc-950 px-1 py-0.5 text-[8px] text-zinc-400"
+                                    className="shrink-0 rounded-full bg-zinc-950 px-1 py-0.5 text-[8px] text-zinc-400"
                                   >
                                     {context}
                                   </span>
@@ -383,7 +383,7 @@ function CalendarDay({
               </div>
             )}
 
-            <div className="ml-auto flex shrink-0 items-center gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
+            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
               <button
                 type="button"
                 onPointerDown={(e) => e.stopPropagation()}
@@ -402,7 +402,6 @@ function CalendarDay({
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                   e.stopPropagation();
-
                   moveItem(item._id, "inbox");
                 }}
                 className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-zinc-100"
