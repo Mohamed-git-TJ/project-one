@@ -1,27 +1,19 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from "react";
-import type { Id } from "../convex/_generated/dataModel";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
 import {
-  addWeeks,
-  subWeeks,
-  startOfWeek,
   addDays,
+  addWeeks,
   format,
   isSameDay,
+  isToday,
+  startOfWeek,
+  subWeeks,
 } from "date-fns";
-
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useDroppable } from "@dnd-kit/core";
-import DraggableItem from "@/components/DraggableItem";
-
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import type { Id } from "../convex/_generated/dataModel";
+import DraggableItem from "./DraggableItem";
 
 type CalendarTask = {
   _id: Id<"tasks">;
@@ -49,28 +41,27 @@ type WeeklyCalendarProps = {
     id: Id<"tasks">,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
-  ) => Promise<void> | void;
+  ) => Promise<void>;
 
-  completeItem: (id: Id<"tasks">) => Promise<void> | void;
+  completeItem: (id: Id<"tasks">) => Promise<void>;
 
-  deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
+  deleteItem: (id: Id<"tasks">) => Promise<void>;
 
   addTask: (
     title: string,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
-  ) => Promise<void> | void;
+  ) => Promise<void>;
 
   editingId: Id<"tasks"> | null;
   editingText: string;
-
-  setEditingId: Dispatch<SetStateAction<Id<"tasks"> | null>>;
-
-  setEditingText: Dispatch<SetStateAction<string>>;
-
-  saveEdit: () => Promise<void> | void;
+  setEditingId: (id: Id<"tasks"> | null) => void;
+  setEditingText: (value: string) => void;
+  saveEdit: () => Promise<void>;
 
   openTaskDetails: (task: CalendarTask) => void;
+
+  isDragging: boolean;
 };
 
 type CalendarDayProps = {
@@ -81,38 +72,26 @@ type CalendarDayProps = {
     title: string,
     status: "inbox" | "incubator" | "scheduled",
     date?: string,
-  ) => Promise<void> | void;
+  ) => Promise<void>;
 
   editingId: Id<"tasks"> | null;
   editingText: string;
+  setEditingId: (id: Id<"tasks"> | null) => void;
+  setEditingText: (value: string) => void;
+  saveEdit: () => Promise<void>;
 
-  setEditingId: Dispatch<SetStateAction<Id<"tasks"> | null>>;
-
-  setEditingText: Dispatch<SetStateAction<string>>;
-
-  saveEdit: () => Promise<void> | void;
+  completeItem: (id: Id<"tasks">) => Promise<void>;
+  deleteItem: (id: Id<"tasks">) => Promise<void>;
 
   openTaskDetails: (task: CalendarTask) => void;
 
-  completeItem: (id: Id<"tasks">) => Promise<void> | void;
+  selectedDate: Date | null;
+  setSelectedDate: (date: Date | null) => void;
 
-  deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
+  expandedDay: Date | null;
+  setExpandedDay: (date: Date | null) => void;
 
-  moveItem: (
-    id: Id<"tasks">,
-    status: "inbox" | "incubator" | "scheduled",
-    date?: string,
-  ) => Promise<void> | void;
-
-  selectedDate: Date;
-
-  setSelectedDate: Dispatch<SetStateAction<Date>>;
-
-  activeDay: string | null;
-
-  setActiveDay: Dispatch<SetStateAction<string | null>>;
-
-  setExpandedDay: Dispatch<SetStateAction<string | null>>;
+  isDragging: boolean;
 };
 
 function CalendarDay({
@@ -124,201 +103,108 @@ function CalendarDay({
   setEditingId,
   setEditingText,
   saveEdit,
-  openTaskDetails,
   completeItem,
   deleteItem,
-  moveItem,
+  openTaskDetails,
   selectedDate,
   setSelectedDate,
-  activeDay,
-  setActiveDay,
+  expandedDay,
   setExpandedDay,
+  isDragging,
 }: CalendarDayProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: day.toISOString(),
   });
 
-  const isToday = isSameDay(day, new Date());
-
-  const isSelected = isSameDay(day, selectedDate);
-
-  const [isAddingTask, setIsAddingTask] = useState(false);
-
+  const [adding, setAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
 
-  const [isSavingTask, setIsSavingTask] = useState(false);
-
-  const handleAddTask = async () => {
-    const title = newTaskTitle.trim();
-
-    if (!title || isSavingTask) return;
-
-    try {
-      setIsSavingTask(true);
-
-      await addTask(title, "scheduled", day.toISOString());
-
-      setNewTaskTitle("");
-      setIsAddingTask(false);
-    } finally {
-      setIsSavingTask(false);
-    }
-  };
+  const isSelected = selectedDate ? isSameDay(selectedDate, day) : false;
 
   const dayItems = items.filter(
-    (item) =>
-      item.status === "scheduled" &&
-      item.date &&
-      isSameDay(new Date(item.date), day),
+    (item) => item.date && isSameDay(new Date(item.date), day),
   );
 
-  const dayId = day.toDateString();
-
-  const todayIso = new Date().toDateString();
-
-  const isActive =
-    activeDay === dayId || (!activeDay && day.toDateString() === todayIso);
-
   const visibleItems = dayItems.slice(0, 3);
+  const remainingCount = Math.max(dayItems.length - visibleItems.length, 0);
+
+  const submitNewTask = async () => {
+    const title = newTaskTitle.trim();
+
+    if (!title) {
+      setAdding(false);
+      return;
+    }
+
+    await addTask(title, "scheduled", day.toISOString());
+
+    setNewTaskTitle("");
+    setAdding(false);
+  };
 
   return (
     <div
       ref={setNodeRef}
-      onClick={(e) => {
-        e.stopPropagation();
-        setActiveDay(dayId);
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        setExpandedDay(day.toISOString());
-      }}
       className={`relative min-w-0 overflow-hidden rounded-xl border p-1.5 transition-all duration-200 sm:p-2.5 ${
-        isActive
+        isToday(day)
           ? "min-h-[280px] border-zinc-700 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-100 sm:min-h-[300px]"
           : "min-h-[250px] border-zinc-800 bg-zinc-950/80 sm:min-h-[270px]"
-      } ${isOver ? "bg-zinc-900/70 ring-2 ring-zinc-300/60" : ""}`}
+      } ${isDragging ? "border-dashed border-zinc-600/80" : ""} ${
+        isOver ? "bg-zinc-900/90 ring-2 ring-zinc-200" : ""
+      }`}
     >
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-
-          setSelectedDate(day);
-          setActiveDay(dayId);
-        }}
-        className={`w-full rounded-lg border p-2 transition hover:bg-zinc-800 sm:p-2.5 ${
-          isSelected ? "border-zinc-700 bg-zinc-900/70" : "border-transparent"
-        }`}
-      >
-        <div
-          className={`text-[10px] font-medium uppercase tracking-wide sm:text-xs ${
-            isToday ? "text-zinc-100" : "text-zinc-400"
-          }`}
-        >
-          {format(day, "EEE")}
-        </div>
-
-        <div
-          className={`mt-0.5 text-base font-semibold sm:text-lg ${
-            isToday ? "text-zinc-100" : "text-zinc-500"
-          }`}
-        >
-          {format(day, "d")}
-        </div>
-
-        <div className="mt-0.5 text-[9px] text-zinc-400 sm:text-[10px]">
-          {dayItems.length} {dayItems.length === 1 ? "task" : "tasks"}
-        </div>
-      </button>
-
-      {!isAddingTask ? (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsAddingTask(true);
-          }}
-          className="mt-1 w-full rounded-md border border-dashed border-zinc-800 px-2 py-1 text-[9px] font-medium text-zinc-500 transition hover:border-zinc-600 hover:bg-zinc-900 hover:text-zinc-100 sm:text-[10px]"
-        >
-          + Add task
-        </button>
-      ) : (
-        <div
-          className="mt-1 rounded-md border border-zinc-800 bg-zinc-900/80 p-1.5"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <input
-            autoFocus
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            onKeyDown={async (e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                await handleAddTask();
-              }
-
-              if (e.key === "Escape") {
-                e.preventDefault();
-                setNewTaskTitle("");
-                setIsAddingTask(false);
-              }
-            }}
-            placeholder="New task..."
-            disabled={isSavingTask}
-            className="w-full min-w-0 rounded border border-zinc-700 bg-zinc-950 px-2 py-1 text-[10px] text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-zinc-500 sm:text-xs"
-          />
-
-          <div className="mt-1 flex items-center justify-between gap-1">
-            <button
-              type="button"
-              onClick={() => {
-                setNewTaskTitle("");
-                setIsAddingTask(false);
-              }}
-              disabled={isSavingTask}
-              className="rounded px-1.5 py-0.5 text-[9px] text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
-            >
-              Cancel
-            </button>
-
-            <button
-              type="button"
-              onClick={handleAddTask}
-              disabled={!newTaskTitle.trim() || isSavingTask}
-              className="rounded bg-zinc-100 px-1.5 py-0.5 text-[9px] font-medium text-zinc-950 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isSavingTask ? "Adding..." : "Add"}
-            </button>
-          </div>
+      {isDragging && isOver && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-zinc-200 bg-zinc-950/35">
+          <span className="rounded-full border border-zinc-200 bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-950 shadow-lg">
+            Drop here
+          </span>
         </div>
       )}
 
-      <div
-        className="mt-2 min-h-[120px] space-y-1.5 text-left"
-        onClick={(e) => e.stopPropagation()}
+      <button
+        type="button"
+        onClick={() => setSelectedDate(day)}
+        className={`mb-2 flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left transition ${
+          isSelected
+            ? "bg-zinc-100 text-zinc-950"
+            : "text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100"
+        }`}
       >
-        {dayItems.length === 0 && (
-          <div className="py-2 text-center text-[9px] text-zinc-400 sm:text-[10px]">
-            Nothing scheduled
+        <div>
+          <div className="text-xs font-medium uppercase tracking-wide">
+            {format(day, "EEE")}
           </div>
-        )}
 
+          <div className="text-sm font-semibold">{format(day, "d")}</div>
+        </div>
+
+        {isToday(day) && (
+          <span className="rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] font-medium text-zinc-300">
+            Today
+          </span>
+        )}
+      </button>
+
+      <div className="space-y-1.5">
         {visibleItems.map((item) => (
-          <div
+          <DraggableItem
             key={item._id}
-            className={`group relative flex min-w-0 items-center overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/70 px-1.5 py-1 text-[10px] transition hover:border-zinc-600 hover:bg-zinc-950 sm:px-2 sm:py-1.5 sm:text-xs ${
-              item.completed ? "opacity-55" : ""
-            }`}
+            item={item}
+            dragId={`calendar-${item._id}`}
+            completed={item.completed}
+            onComplete={() => completeItem(item._id)}
           >
             {editingId === item._id ? (
               <input
                 autoFocus
                 value={editingText}
                 onChange={(e) => setEditingText(e.target.value)}
-                onBlur={saveEdit}
+                onBlur={() => {
+                  void saveEdit();
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    saveEdit();
+                    void saveEdit();
                   }
 
                   if (e.key === "Escape") {
@@ -326,119 +212,81 @@ function CalendarDay({
                     setEditingText("");
                   }
                 }}
-                className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-900 px-1 py-0.5 text-xs outline-none"
+                className="w-full min-w-0 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 outline-none focus:border-zinc-400"
               />
             ) : (
-              <div className="min-w-0 flex-1 overflow-hidden">
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="min-w-0">
-                        <DraggableItem
-                          item={item}
-                          dragId={`calendar-${item._id}`}
-                          completed={item.completed}
-                          onComplete={() => completeItem(item._id)}
-                        >
-                          <span
-                            onDoubleClick={() => {
-                              setEditingId(item._id);
-                              setEditingText(item.title);
-                            }}
-                            className={`block min-w-0 max-w-full text-left leading-4 ${
-                              item.completed
-                                ? "text-zinc-400 line-through"
-                                : "text-zinc-500"
-                            }`}
-                          >
-                            <span className="block min-w-0 max-w-full truncate whitespace-nowrap">
-                              {item.title}
-                            </span>
-
-                            {item.contexts && item.contexts.length > 0 && (
-                              <span className="mt-0.5 flex min-w-0 max-w-full flex-wrap gap-1 overflow-hidden">
-                                {item.contexts.map((context) => (
-                                  <span
-                                    key={context}
-                                    className="shrink-0 rounded-full bg-zinc-950 px-1 py-0.5 text-[8px] text-zinc-400"
-                                  >
-                                    {context}
-                                  </span>
-                                ))}
-                              </span>
-                            )}
-                          </span>
-                        </DraggableItem>
-                      </div>
-                    </TooltipTrigger>
-
-                    <TooltipContent
-                      side="top"
-                      className="max-w-[260px] text-sm"
-                    >
-                      {item.title}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+              <button
+                type="button"
+                onClick={() => openTaskDetails(item)}
+                onDoubleClick={() => {
+                  setEditingId(item._id);
+                  setEditingText(item.title);
+                }}
+                className={`block w-full min-w-0 truncate rounded-md px-1.5 py-1 text-left text-xs transition hover:bg-zinc-900 ${
+                  item.completed
+                    ? "text-zinc-500 line-through"
+                    : "text-zinc-200"
+                }`}
+              >
+                {item.title}
+              </button>
             )}
-
-            <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center gap-0.5 rounded bg-zinc-950/95 px-0.5 shadow-sm opacity-0 transition-opacity group-hover:opacity-100">
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openTaskDetails(item);
-                }}
-                className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-zinc-100"
-                title="Details"
-              >
-                ⓘ
-              </button>
-
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  moveItem(item._id, "inbox");
-                }}
-                className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-zinc-100"
-                title="Move to Inbox"
-              >
-                ↩
-              </button>
-
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteItem(item._id);
-                }}
-                className="rounded p-0.5 text-[10px] text-zinc-400 hover:text-red-400"
-                title="Delete task"
-              >
-                ×
-              </button>
-            </div>
-          </div>
+          </DraggableItem>
         ))}
 
-        {dayItems.length > 3 && (
+        {remainingCount > 0 && (
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setExpandedDay(day.toISOString());
-            }}
-            className="px-1 text-[9px] font-medium text-zinc-400 hover:text-zinc-100 sm:text-[10px]"
+            onClick={() => setExpandedDay(day)}
+            className="w-full rounded-md px-2 py-1 text-left text-[11px] text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-300"
           >
-            +{dayItems.length - 3} more
+            +{remainingCount} more
           </button>
         )}
       </div>
+
+      {adding ? (
+        <div className="mt-2 flex items-center gap-1">
+          <input
+            autoFocus
+            value={newTaskTitle}
+            onChange={(e) => setNewTaskTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                void submitNewTask();
+              }
+
+              if (e.key === "Escape") {
+                setNewTaskTitle("");
+                setAdding(false);
+              }
+            }}
+            placeholder="Task..."
+            className="min-w-0 flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-zinc-400"
+          />
+
+          <button
+            type="button"
+            onClick={() => {
+              setNewTaskTitle("");
+              setAdding(false);
+            }}
+            className="shrink-0 rounded-md p-1 text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-300"
+            aria-label="Cancel adding task"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="mt-2 flex w-full items-center gap-1 rounded-md px-2 py-1 text-left text-[11px] text-zinc-600 transition hover:bg-zinc-900 hover:text-zinc-300"
+        >
+          <Plus className="h-3 w-3" />
+          Add task
+        </button>
+      )}
     </div>
   );
 }
@@ -447,211 +295,84 @@ function DayDetailModal({
   day,
   items,
   onClose,
-  addTask,
+  openTaskDetails,
   completeItem,
   deleteItem,
-  moveItem,
-  openTaskDetails,
 }: {
   day: Date;
   items: CalendarTask[];
   onClose: () => void;
-
-  addTask: (
-    title: string,
-    status: "inbox" | "incubator" | "scheduled",
-    date?: string,
-  ) => Promise<void> | void;
-
-  completeItem: (id: Id<"tasks">) => Promise<void> | void;
-
-  deleteItem: (id: Id<"tasks">) => Promise<unknown> | unknown;
-
-  moveItem: (
-    id: Id<"tasks">,
-    status: "inbox" | "incubator" | "scheduled",
-    date?: string,
-  ) => Promise<void> | void;
-
   openTaskDetails: (task: CalendarTask) => void;
+  completeItem: (id: Id<"tasks">) => Promise<void>;
+  deleteItem: (id: Id<"tasks">) => Promise<void>;
 }) {
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-
-  const [isSavingTask, setIsSavingTask] = useState(false);
-
-  const handleAddTask = async () => {
-    const title = newTaskTitle.trim();
-
-    if (!title || isSavingTask) return;
-
-    try {
-      setIsSavingTask(true);
-
-      await addTask(title, "scheduled", day.toISOString());
-
-      setNewTaskTitle("");
-    } finally {
-      setIsSavingTask(false);
-    }
-  };
+  const dayItems = items.filter(
+    (item) => item.date && isSameDay(new Date(item.date), day),
+  );
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-      onClick={onClose}
-    >
-      <div
-        className="flex max-h-[85vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between border-b border-zinc-800 px-5 py-4 sm:px-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-zinc-100 sm:text-xl">
-              {format(day, "EEEE")}
-            </h2>
+            <h3 className="text-lg font-semibold text-zinc-100">
+              {format(day, "EEEE, d MMMM")}
+            </h3>
 
-            <p className="mt-0.5 text-sm text-zinc-500">
-              {format(day, "MMMM d, yyyy")} · {items.length}{" "}
-              {items.length === 1 ? "task" : "tasks"}
+            <p className="text-xs text-zinc-500">
+              {dayItems.length} {dayItems.length === 1 ? "task" : "tasks"}
             </p>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-400 transition hover:border-zinc-700 hover:text-zinc-100"
+            className="rounded-lg p-2 text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-200"
+            aria-label="Close"
           >
-            ✕
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-          {items.length === 0 ? (
-            <div className="flex min-h-[180px] items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-zinc-900/30 text-sm text-zinc-500">
-              Nothing scheduled for this day
+        <div className="max-h-[60vh] space-y-2 overflow-y-auto">
+          {dayItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-8 text-center text-sm text-zinc-600">
+              No tasks scheduled for this day.
             </div>
           ) : (
-            <div className="space-y-2">
-              {items.map((item) => (
-                <div
-                  key={item._id}
-                  className={`group flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-3 transition hover:border-zinc-700 hover:bg-zinc-900 ${
-                    item.completed ? "opacity-60" : ""
-                  }`}
-                >
-                  <DraggableItem
-                    item={item}
-                    dragId={`calendar-modal-${item._id}`}
-                    completed={item.completed}
-                    onComplete={() => completeItem(item._id)}
+            dayItems.map((item) => (
+              <DraggableItem
+                key={item._id}
+                item={item}
+                dragId={`calendar-modal-${item._id}`}
+                completed={item.completed}
+                onComplete={() => completeItem(item._id)}
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openTaskDetails(item)}
+                    className={`min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm transition hover:bg-zinc-900 ${
+                      item.completed
+                        ? "text-zinc-500 line-through"
+                        : "text-zinc-200"
+                    }`}
                   >
-                    <div className="min-w-0 flex-1 text-left">
-                      <div
-                        onDoubleClick={() => openTaskDetails(item)}
-                        className={`break-words text-sm leading-5 ${
-                          item.completed
-                            ? "text-zinc-500 line-through"
-                            : "text-zinc-200"
-                        }`}
-                      >
-                        {item.title}
-                      </div>
+                    {item.title}
+                  </button>
 
-                      {item.contexts && item.contexts.length > 0 && (
-                        <div className="mt-1.5 flex flex-wrap gap-1">
-                          {item.contexts.map((context) => (
-                            <span
-                              key={context}
-                              className="rounded-full bg-zinc-950 px-2 py-0.5 text-[10px] text-zinc-400"
-                            >
-                              {context}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </DraggableItem>
-
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-
-                        onClose();
-                        openTaskDetails(item);
-                      }}
-                      className="rounded-md p-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
-                      title="Details"
-                    >
-                      ⓘ
-                    </button>
-
-                    <button
-                      type="button"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-
-                        moveItem(item._id, "inbox");
-                      }}
-                      className="rounded-md p-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100"
-                      title="Move to Inbox"
-                    >
-                      ↩
-                    </button>
-
-                    <button
-                      type="button"
-                      onPointerDown={(e) => e.stopPropagation()}
-                      onClick={(e) => {
-                        e.stopPropagation();
-
-                        deleteItem(item._id);
-                      }}
-                      className="rounded-md p-1.5 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-red-400"
-                      title="Delete task"
-                    >
-                      ×
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void deleteItem(item._id)}
+                    className="shrink-0 rounded-md p-1.5 text-zinc-600 transition hover:bg-zinc-900 hover:text-zinc-300"
+                    aria-label="Delete task"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
                 </div>
-              ))}
-            </div>
+              </DraggableItem>
+            ))
           )}
-        </div>
-
-        <div className="border-t border-zinc-800 p-4 sm:p-5">
-          <div className="flex gap-2">
-            <input
-              value={newTaskTitle}
-              onChange={(e) => setNewTaskTitle(e.target.value)}
-              onKeyDown={async (e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  await handleAddTask();
-                }
-
-                if (e.key === "Escape") {
-                  e.preventDefault();
-                  onClose();
-                }
-              }}
-              placeholder="Add a task for this day..."
-              disabled={isSavingTask}
-              className="min-w-0 flex-1 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-zinc-600"
-            />
-
-            <button
-              type="button"
-              onClick={handleAddTask}
-              disabled={!newTaskTitle.trim() || isSavingTask}
-              className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {isSavingTask ? "Adding..." : "Add"}
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -670,243 +391,147 @@ export default function WeeklyCalendar({
   setEditingText,
   saveEdit,
   openTaskDetails,
+  isDragging,
 }: WeeklyCalendarProps) {
-  const [activeDay, setActiveDay] = useState<string | null>(null);
+  const [weekStart, setWeekStart] = useState(() =>
+    startOfWeek(new Date(), {
+      weekStartsOn: 1,
+    }),
+  );
 
-  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [expandedDay, setExpandedDay] = useState<Date | null>(null);
 
-  const [calendarSearch, setCalendarSearch] = useState("");
+  const weekDays = useMemo(
+    () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
+    [weekStart],
+  );
 
-  const [searchIndex, setSearchIndex] = useState(0);
+  const filteredItems = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
 
-  const [currentDate, setCurrentDate] = useState(new Date());
+    if (!query) {
+      return items;
+    }
 
-  const [selectedDate, setSelectedDate] = useState(new Date());
+    return items.filter((item) => item.title.toLowerCase().includes(query));
+  }, [items, searchQuery]);
 
-  const [expandedDay, setExpandedDay] = useState<string | null>(null);
-
-  const weekStart = startOfWeek(currentDate, {
-    weekStartsOn: 1,
-  });
-
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
-
-  const expandedDate = expandedDay ? new Date(expandedDay) : null;
-
-  const expandedDayItems = expandedDate
-    ? items.filter(
-        (item) =>
-          item.status === "scheduled" &&
-          item.date &&
-          isSameDay(new Date(item.date), expandedDate),
-      )
-    : [];
-
-  const searchMatches = calendarSearch.trim()
-    ? items.filter(
-        (item) =>
-          item.status === "scheduled" &&
-          item.date &&
-          item.title
-            .toLowerCase()
-            .includes(calendarSearch.trim().toLowerCase()),
-      )
-    : [];
-
-  const goToMatch = (index: number) => {
-    const match = searchMatches[index];
-
-    if (!match?.date) return;
-
-    const matchDate = new Date(match.date);
-
-    setCurrentDate(matchDate);
-    setSelectedDate(matchDate);
-    setActiveDay(matchDate.toDateString());
-    setExpandedDay(null);
+  const goPreviousWeek = () => {
+    setWeekStart((current) => subWeeks(current, 1));
   };
 
-  const { setNodeRef: setNextWeekRef, isOver: isNextWeekOver } = useDroppable({
-    id: "next-week",
-  });
+  const goNextWeek = () => {
+    setWeekStart((current) => addWeeks(current, 1));
+  };
 
-  const { setNodeRef: setPreviousWeekRef, isOver: isPreviousWeekOver } =
-    useDroppable({
-      id: "previous-week",
-    });
+  const goToday = () => {
+    const today = new Date();
 
-  const { setNodeRef: setTodayRef, isOver: isTodayOver } = useDroppable({
-    id: "today",
-  });
+    setWeekStart(
+      startOfWeek(today, {
+        weekStartsOn: 1,
+      }),
+    );
+
+    setSelectedDate(today);
+  };
 
   return (
-    <Card className="relative mt-4 border-zinc-800 bg-zinc-950/80 p-5 shadow-sm sm:p-6">
-      <div className="relative mb-5 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          <Button
-            ref={setPreviousWeekRef}
-            variant="outline"
-            className={`h-8 border-zinc-700 bg-zinc-900 px-2.5 text-xs text-zinc-500 shadow-none hover:bg-zinc-800 hover:text-zinc-100 ${
-              isPreviousWeekOver ? "ring-2 ring-zinc-300/60" : ""
-            }`}
-            onClick={() => setCurrentDate(subWeeks(currentDate, 1))}
+    <div className="space-y-3">
+      {/* ==================== TOOLBAR ==================== */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={goPreviousWeek}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-200"
+            aria-label="Previous week"
           >
-            ←
-          </Button>
+            <ChevronLeft className="h-4 w-4" />
+          </button>
 
-          <Button
-            ref={setTodayRef}
-            variant="outline"
-            className={`h-8 border-zinc-800 bg-zinc-950/80 px-3 text-xs font-medium text-zinc-500 shadow-none hover:bg-zinc-800 ${
-              isTodayOver ? "ring-2 ring-zinc-300/60" : ""
-            }`}
-            onClick={() => {
-              const today = new Date();
-
-              setCurrentDate(today);
-              setSelectedDate(today);
-              setActiveDay(today.toDateString());
-            }}
+          <button
+            type="button"
+            onClick={goToday}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:bg-zinc-900 hover:text-zinc-100"
           >
             Today
-          </Button>
+          </button>
 
-          <Button
-            variant="outline"
-            className="h-8 border-zinc-700 bg-zinc-900 px-2.5 text-xs text-zinc-500 shadow-none hover:bg-zinc-800 hover:text-zinc-100"
-            onClick={() => setShowSearch((prev) => !prev)}
-            title="Search calendar"
+          <button
             type="button"
+            onClick={goNextWeek}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 p-2 text-zinc-500 transition hover:bg-zinc-900 hover:text-zinc-200"
+            aria-label="Next week"
           >
-            🔍
-          </Button>
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
 
-        <div className="pointer-events-none absolute left-1/2 hidden -translate-x-1/2 text-center sm:block">
-          <h2 className="text-sm font-semibold text-zinc-100 sm:text-base">
-            Week of {format(weekStart, "MMM d, yyyy")}
-          </h2>
+        <div className="text-sm font-medium text-zinc-300">
+          {format(weekStart, "d MMM")} – {format(weekDays[6], "d MMM yyyy")}
         </div>
 
-        <Button
-          ref={setNextWeekRef}
-          variant="outline"
-          className={`h-8 border-zinc-700 bg-zinc-900 px-2.5 text-xs text-zinc-500 shadow-none hover:bg-zinc-800 hover:text-zinc-100 ${
-            isNextWeekOver ? "ring-2 ring-zinc-300/60" : ""
-          }`}
-          onClick={() => setCurrentDate(addWeeks(currentDate, 1))}
-        >
-          →
-        </Button>
-      </div>
+        <div className="relative w-full sm:w-56">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
 
-      <div className="mb-4 text-sm font-semibold text-zinc-100 sm:hidden">
-        Week of {format(weekStart, "MMM d, yyyy")}
-      </div>
-
-      {showSearch && (
-        <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/70 p-2">
           <input
-            value={calendarSearch}
-            onChange={(e) => {
-              setCalendarSearch(e.target.value);
-              setSearchIndex(0);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && searchMatches.length > 0) {
-                goToMatch(0);
-              }
-            }}
-            placeholder="Find scheduled task..."
-            className="min-w-[180px] flex-1 rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-xs outline-none focus:border-zinc-600"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tasks..."
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 py-2 pl-8 pr-3 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-zinc-600"
           />
-
-          <Button
-            variant="outline"
-            className="h-8 border-zinc-800 bg-zinc-950/80 px-2 text-xs"
-            disabled={searchMatches.length === 0}
-            onClick={() => {
-              const nextIndex =
-                searchIndex === 0 ? searchMatches.length - 1 : searchIndex - 1;
-
-              setSearchIndex(nextIndex);
-
-              goToMatch(nextIndex);
-            }}
-          >
-            ←
-          </Button>
-
-          <Button
-            variant="outline"
-            className="h-8 border-zinc-800 bg-zinc-950/80 px-2 text-xs"
-            disabled={searchMatches.length === 0}
-            onClick={() => {
-              const nextIndex =
-                searchIndex === searchMatches.length - 1 ? 0 : searchIndex + 1;
-
-              setSearchIndex(nextIndex);
-
-              goToMatch(nextIndex);
-            }}
-          >
-            →
-          </Button>
-
-          <div className="text-[11px] text-zinc-400">
-            {calendarSearch
-              ? searchMatches.length > 0
-                ? `${searchIndex + 1} / ${searchMatches.length}`
-                : "No matches"
-              : ""}
-          </div>
         </div>
-      )}
+      </div>
 
-      {/* WEEKLY DAYS */}
-      <div className="grid grid-cols-7 gap-2 text-center lg:gap-3">
-        {days.map((day) => (
+      {/* ==================== WEEK ==================== */}
+      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+        {weekDays.map((day) => (
           <CalendarDay
-            key={day.toString()}
+            key={day.toISOString()}
             day={day}
-            items={items}
+            items={filteredItems}
             addTask={addTask}
             editingId={editingId}
             editingText={editingText}
             setEditingId={setEditingId}
             setEditingText={setEditingText}
             saveEdit={saveEdit}
-            openTaskDetails={openTaskDetails}
             completeItem={completeItem}
             deleteItem={deleteItem}
-            moveItem={moveItem}
+            openTaskDetails={openTaskDetails}
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
-            activeDay={activeDay}
-            setActiveDay={setActiveDay}
+            expandedDay={expandedDay}
             setExpandedDay={setExpandedDay}
+            isDragging={isDragging}
           />
         ))}
       </div>
 
-      {expandedDate && (
+      {/* ==================== EXPANDED DAY ==================== */}
+      {expandedDay && (
         <DayDetailModal
-          day={expandedDate}
-          items={expandedDayItems}
+          day={expandedDay}
+          items={filteredItems}
           onClose={() => setExpandedDay(null)}
-          addTask={addTask}
+          openTaskDetails={openTaskDetails}
           completeItem={completeItem}
           deleteItem={deleteItem}
-          moveItem={moveItem}
-          openTaskDetails={openTaskDetails}
         />
       )}
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-800 pt-3 text-[11px] text-zinc-400">
-        <span>Selected: {format(selectedDate, "EEEE, MMMM d, yyyy")}</span>
+      {/* ==================== FOOTER ==================== */}
+      <div className="flex items-center justify-between text-[11px] text-zinc-600">
+        <span>
+          {filteredItems.length} {filteredItems.length === 1 ? "task" : "tasks"}{" "}
+          shown
+        </span>
 
-        <span>Drag tasks between days, Inbox and Incubator.</span>
+        <span>Week starts Monday</span>
       </div>
-    </Card>
+    </div>
   );
 }

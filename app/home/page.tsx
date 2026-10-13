@@ -9,6 +9,7 @@ import {
   DndContext,
   DragOverlay,
   useDroppable,
+  pointerWithin,
   closestCorners,
 } from "@dnd-kit/core";
 import { useQuery, useMutation } from "convex/react";
@@ -43,7 +44,41 @@ type Item = {
   projectId?: Id<"projects">;
 };
 
-function TodayDropZone({ children }: { children: React.ReactNode }) {
+function DropZoneOverlay({
+  label,
+  isOver,
+}: {
+  label: string;
+  isOver: boolean;
+}) {
+  return (
+    <div
+      className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed transition-all duration-150 ${
+        isOver
+          ? "border-zinc-200 bg-zinc-100/10 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+          : "border-zinc-700/70 bg-zinc-950/25"
+      }`}
+    >
+      <span
+        className={`rounded-full border px-3 py-1.5 text-xs font-medium backdrop-blur-sm transition-all ${
+          isOver
+            ? "border-zinc-200 bg-zinc-100 text-zinc-950"
+            : "border-zinc-700 bg-zinc-900/90 text-zinc-300"
+        }`}
+      >
+        {isOver ? label : `Drop ${label.toLowerCase()}`}
+      </span>
+    </div>
+  );
+}
+
+function TodayDropZone({
+  children,
+  isDragging,
+}: {
+  children: React.ReactNode;
+  isDragging: boolean;
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: "today-home",
   });
@@ -51,16 +86,23 @@ function TodayDropZone({ children }: { children: React.ReactNode }) {
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-xl transition-all ${
+      className={`relative rounded-xl transition-all ${
         isOver ? "ring-2 ring-zinc-300/60 bg-zinc-900/90" : ""
       }`}
     >
       {children}
+      {isDragging && <DropZoneOverlay label="Today" isOver={isOver} />}
     </div>
   );
 }
 
-function InboxDropZone({ children }: { children: React.ReactNode }) {
+function InboxDropZone({
+  children,
+  isDragging,
+}: {
+  children: React.ReactNode;
+  isDragging: boolean;
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: "inbox",
   });
@@ -68,16 +110,23 @@ function InboxDropZone({ children }: { children: React.ReactNode }) {
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-xl transition-all ${
+      className={`relative rounded-xl transition-all ${
         isOver ? "ring-2 ring-zinc-300/60 bg-zinc-900/90" : ""
       }`}
     >
       {children}
+      {isDragging && <DropZoneOverlay label="Inbox" isOver={isOver} />}
     </div>
   );
 }
 
-function IncubatorDropZone({ children }: { children: React.ReactNode }) {
+function IncubatorDropZone({
+  children,
+  isDragging,
+}: {
+  children: React.ReactNode;
+  isDragging: boolean;
+}) {
   const { setNodeRef, isOver } = useDroppable({
     id: "incubator",
   });
@@ -85,11 +134,12 @@ function IncubatorDropZone({ children }: { children: React.ReactNode }) {
   return (
     <div
       ref={setNodeRef}
-      className={`rounded-xl transition-all ${
+      className={`relative rounded-xl transition-all ${
         isOver ? "ring-2 ring-zinc-300/60 bg-zinc-900/90" : ""
       }`}
     >
       {children}
+      {isDragging && <DropZoneOverlay label="Incubator" isOver={isOver} />}
     </div>
   );
 }
@@ -160,7 +210,11 @@ export default function InboxCard() {
     });
   };
 
-  const moveItem = async (id: Id<"tasks">, status: Status, date?: string) => {
+  const moveItem = async (
+    id: Id<"tasks">,
+    status: Status,
+    date?: string,
+  ): Promise<void> => {
     await updateTask({
       id,
       status,
@@ -448,9 +502,23 @@ export default function InboxCard() {
 
   return (
     <DndContext
-      collisionDetection={closestCorners}
+      collisionDetection={(args) => {
+        const pointerCollisions = pointerWithin(args);
+
+        if (pointerCollisions.length > 0) {
+          return pointerCollisions;
+        }
+
+        return closestCorners(args);
+      }}
       onDragStart={(event) => {
-        const dragged = items.find((item) => item._id === event.active.id);
+        const itemId = event.active.data.current?.taskId as
+          | Id<"tasks">
+          | undefined;
+
+        const dragged = itemId
+          ? items.find((item) => item._id === itemId)
+          : undefined;
 
         if (dragged) {
           setActiveItem(dragged);
@@ -576,7 +644,7 @@ export default function InboxCard() {
           {/* ==================== TOP ROW ==================== */}
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)]">
             {/* ==================== TODAY ==================== */}
-            <TodayDropZone>
+            <TodayDropZone isDragging={Boolean(activeItem)}>
               <Card className="border-zinc-800 bg-zinc-950/80 shadow-2xl">
                 <CardHeader className="border-b border-zinc-800 pb-4">
                   <div className="flex items-start justify-between gap-4">
@@ -661,7 +729,7 @@ export default function InboxCard() {
             {/* ==================== SIDE STACK ==================== */}
             <div className="grid gap-4">
               {/* INBOX */}
-              <InboxDropZone>
+              <InboxDropZone isDragging={Boolean(activeItem)}>
                 <Card
                   className={`border-zinc-800 bg-zinc-950/80 shadow-2xl ${
                     expanded === "inbox"
@@ -762,7 +830,7 @@ export default function InboxCard() {
               </InboxDropZone>
 
               {/* INCUBATOR */}
-              <IncubatorDropZone>
+              <IncubatorDropZone isDragging={Boolean(activeItem)}>
                 <Card
                   className={`border-zinc-800 bg-zinc-950/80 shadow-2xl ${
                     expanded === "incubator"
@@ -869,7 +937,9 @@ export default function InboxCard() {
               items={items}
               moveItem={moveItem}
               completeItem={completeItem}
-              deleteItem={(id) => deleteTaskMutation({ id })}
+              deleteItem={async (id) => {
+                await deleteTaskMutation({ id });
+              }}
               addTask={async (title, status, date) => {
                 const id = await createTask({
                   title,
@@ -890,6 +960,7 @@ export default function InboxCard() {
               setEditingText={setEditingText}
               saveEdit={saveEdit}
               openTaskDetails={openTaskDetails}
+              isDragging={Boolean(activeItem)}
             />
           </div>
 
