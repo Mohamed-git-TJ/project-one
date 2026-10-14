@@ -934,7 +934,7 @@ export default function InboxCard() {
           {/* ==================== CALENDAR ==================== */}
           <div className="mt-4">
             <WeeklyCalendar
-              items={items}
+              items={filteredItems}
               moveItem={moveItem}
               completeItem={completeItem}
               deleteItem={async (id) => {
