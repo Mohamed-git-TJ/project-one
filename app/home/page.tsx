@@ -44,6 +44,33 @@ type Item = {
   projectId?: Id<"projects">;
 };
 
+function PriorityIndicator({
+  priority,
+}: {
+  priority?: "low" | "medium" | "high";
+}) {
+  const level = priority ?? "medium";
+  const styles = {
+    high: "bg-red-400",
+    medium: "bg-amber-400",
+    low: "bg-zinc-500",
+  };
+  const labels = {
+    high: "High priority",
+    medium: "Medium priority",
+    low: "Low priority",
+  };
+
+  return (
+    <span
+      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${styles[level]}`}
+      title={labels[level]}
+      role="img"
+      aria-label={labels[level]}
+    />
+  );
+}
+
 function DropZoneOverlay({
   label,
   isOver,
@@ -418,14 +445,17 @@ export default function InboxCard() {
                     }}
                     className="min-w-0"
                   >
-                    <div
-                      className={`truncate text-sm ${
-                        item.completed
-                          ? "line-through text-zinc-400"
-                          : "text-zinc-100"
-                      }`}
-                    >
-                      {item.title}
+                    <div className="flex min-w-0 items-start gap-2">
+                      <PriorityIndicator priority={item.priority} />
+                      <div
+                        className={`min-w-0 flex-1 truncate text-sm ${
+                          item.completed
+                            ? "line-through text-zinc-400"
+                            : "text-zinc-100"
+                        }`}
+                      >
+                        {item.title}
+                      </div>
                     </div>
 
                     {item.contexts && item.contexts.length > 0 && (

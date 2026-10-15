@@ -34,6 +34,35 @@ type CalendarTask = {
   projectId?: Id<"projects">;
 };
 
+function PriorityIndicator({
+  priority,
+}: {
+  priority?: "low" | "medium" | "high";
+}) {
+  const level = priority ?? "medium";
+
+  const styles = {
+    high: "bg-red-400",
+    medium: "bg-amber-400",
+    low: "bg-zinc-500",
+  };
+
+  const labels = {
+    high: "High priority",
+    medium: "Medium priority",
+    low: "Low priority",
+  };
+
+  return (
+    <span
+      className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${styles[level]}`}
+      title={labels[level]}
+      role="img"
+      aria-label={labels[level]}
+    />
+  );
+}
+
 type TaskStatus = "inbox" | "incubator" | "scheduled";
 
 type WeeklyCalendarProps = {
@@ -197,13 +226,14 @@ function CalendarDay({
                     setEditingId(item._id);
                     setEditingText(item.title);
                   }}
-                  className={`block min-w-0 flex-1 truncate rounded-md px-1.5 py-1 text-left text-xs transition hover:bg-zinc-900 ${
+                  className={`flex min-w-0 flex-1 items-center gap-2 truncate rounded-md px-1.5 py-1 text-left text-xs transition hover:bg-zinc-900 ${
                     item.completed
                       ? "text-zinc-500 line-through"
                       : "text-zinc-200"
                   }`}
                 >
-                  {item.title}
+                  <PriorityIndicator priority={item.priority} />
+                  <span className="min-w-0 truncate">{item.title}</span>
                 </button>
               )}
 
@@ -371,18 +401,21 @@ function DayDetailModal({
                   <button
                     type="button"
                     onClick={() => openTaskDetails(item)}
-                    className={`min-w-0 flex-1 rounded-md px-2 py-2 text-left text-sm transition hover:bg-zinc-900 ${
+                    className={`flex min-w-0 flex-1 items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition hover:bg-zinc-900 ${
                       item.completed
                         ? "text-zinc-500 line-through"
                         : "text-zinc-200"
                     }`}
                   >
-                    <span className="block break-words">{item.title}</span>
-                    {item.notes && (
-                      <span className="mt-1 block truncate text-xs text-zinc-500">
-                        {item.notes}
-                      </span>
-                    )}
+                    <PriorityIndicator priority={item.priority} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block break-words">{item.title}</span>
+                      {item.notes && (
+                        <span className="mt-1 block truncate text-xs text-zinc-500">
+                          {item.notes}
+                        </span>
+                      )}
+                    </span>
                   </button>
 
                   <button
