@@ -639,7 +639,9 @@ export default function InboxCard() {
     >
       {(expanded || selectedTask) && (
         <div
-          className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm"
+          className={`fixed inset-0 ${
+            selectedTask ? "z-[65]" : "z-40"
+          } bg-black/70 backdrop-blur-sm`}
           onClick={() => {
             setExpanded(null);
             setSelectedTask(null);
@@ -1119,7 +1121,7 @@ export default function InboxCard() {
 
       {/* ==================== TASK DETAILS MODAL ==================== */}
       {selectedTask && (
-        <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
+        <div className="fixed left-1/2 top-1/2 z-[70] w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
           <Card className="flex max-h-[90vh] flex-col border-zinc-800 bg-zinc-950/80 shadow-2xl">
             <CardHeader className="relative border-b border-zinc-800">
               <CardTitle>Task Details</CardTitle>
