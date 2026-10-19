@@ -26,7 +26,7 @@ export default defineSchema({
     recurrenceEndDate: v.optional(v.string()),
 
     projectId: v.optional(v.id("projects")),
-
+    order: v.optional(v.number()),
     createdAt: v.number(),
   }).index("by_user", ["userId"]),
 

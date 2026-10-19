@@ -147,7 +147,10 @@ export const updateTask = mutation({
       }
     }
 
-    if (args.date !== undefined && Number.isNaN(new Date(args.date).getTime())) {
+    if (
+      args.date !== undefined &&
+      Number.isNaN(new Date(args.date).getTime())
+    ) {
       throw new Error("Invalid task date");
     }
 
@@ -157,6 +160,7 @@ export const updateTask = mutation({
     const patch = {
       status: args.status,
       date,
+      order: undefined,
     };
 
     if (args.projectId !== undefined) {
@@ -410,6 +414,45 @@ export const toggleComplete = mutation({
       completed: true,
       completedAt: Date.now(),
     });
+  },
+});
+
+export const reorderDayTasks = mutation({
+  args: {
+    taskIds: v.array(v.id("tasks")),
+    dayStart: v.number(),
+    dayEnd: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    if (new Set(args.taskIds).size !== args.taskIds.length) {
+      throw new Error("Duplicate task IDs are not allowed");
+    }
+
+    const tasks = await Promise.all(args.taskIds.map((id) => ctx.db.get(id)));
+
+    for (const task of tasks) {
+      if (!task) throw new Error("Task not found");
+      if (task.userId !== identity.subject) {
+        throw new Error("Unauthorized");
+      }
+
+      if (task.status !== "scheduled" || !task.date) {
+        throw new Error("Only scheduled tasks can be reordered");
+      }
+
+      const taskTime = new Date(task.date).getTime();
+
+      if (taskTime < args.dayStart || taskTime > args.dayEnd) {
+        throw new Error("All reordered tasks must belong to the same day");
+      }
+    }
+
+    await Promise.all(
+      args.taskIds.map((id, index) => ctx.db.patch(id, { order: index })),
+    );
   },
 });
 

@@ -182,6 +182,7 @@ export default function InboxCard() {
   const toggleComplete = useMutation(api.tasks.toggleComplete);
   const editTask = useMutation(api.tasks.editTask);
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
+  const reorderTasksMutation = useMutation(api.tasks.reorderDayTasks);
 
   const [projectInput, setProjectInput] = useState("");
   const [inboxInput, setInboxInput] = useState("");
@@ -993,6 +994,13 @@ export default function InboxCard() {
               saveEdit={saveEdit}
               openTaskDetails={openTaskDetails}
               isDragging={Boolean(activeItem)}
+              reorderDayTasks={async (taskIds, dayStart, dayEnd) => {
+                await reorderTasksMutation({
+                  taskIds,
+                  dayStart,
+                  dayEnd,
+                });
+              }}
             />
           </div>
 

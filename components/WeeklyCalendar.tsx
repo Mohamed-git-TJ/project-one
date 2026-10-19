@@ -11,7 +11,19 @@ import {
   startOfWeek,
   subWeeks,
 } from "date-fns";
-import { useDroppable } from "@dnd-kit/core";
+import {
+  DndContext,
+  closestCenter,
+  useDroppable,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { Id } from "../convex/_generated/dataModel";
 import DraggableItem from "./DraggableItem";
 
@@ -32,6 +44,8 @@ type CalendarTask = {
   recurrenceDays?: string[];
   recurrenceEndDate?: string;
   projectId?: Id<"projects">;
+  order?: number;
+  createdAt?: number;
 };
 
 function PriorityIndicator({
@@ -74,6 +88,11 @@ type WeeklyCalendarProps = {
   ) => Promise<void>;
   completeItem: (id: Id<"tasks">) => Promise<void>;
   deleteItem: (id: Id<"tasks">) => Promise<void>;
+  reorderDayTasks: (
+    taskIds: Id<"tasks">[],
+    dayStart: number,
+    dayEnd: number,
+  ) => Promise<void>;
   addTask: (title: string, status: TaskStatus, date?: string) => Promise<void>;
   editingId: Id<"tasks"> | null;
   editingText: string;
@@ -128,9 +147,11 @@ function CalendarDay({
 
   const isSelected = selectedDate ? isSameDay(selectedDate, day) : false;
 
-  const dayItems = items.filter(
-    (item) => item.date && isSameDay(new Date(item.date), day),
-  );
+  const dayItems = items
+    .filter((item) => item.date && isSameDay(new Date(item.date), day))
+    .sort(
+      (a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0),
+    );
 
   const visibleItems = dayItems.slice(0, 3);
   const remainingCount = Math.max(dayItems.length - visibleItems.length, 0);
@@ -185,6 +206,7 @@ function CalendarDay({
 
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-zinc-500">{dayItems.length}</span>
+
           {isToday(day) && (
             <span className="rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] font-medium text-zinc-300">
               Today
@@ -211,6 +233,7 @@ function CalendarDay({
                   onBlur={() => void saveEdit()}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void saveEdit();
+
                     if (e.key === "Escape") {
                       setEditingId(null);
                       setEditingText("");
@@ -275,6 +298,7 @@ function CalendarDay({
             onChange={(e) => setNewTaskTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void submitNewTask();
+
               if (e.key === "Escape") {
                 setNewTaskTitle("");
                 setAdding(false);
@@ -310,6 +334,99 @@ function CalendarDay({
   );
 }
 
+function SortableDayTask({
+  item,
+  openTaskDetails,
+  completeItem,
+  deleteItem,
+}: {
+  item: CalendarTask;
+  openTaskDetails: WeeklyCalendarProps["openTaskDetails"];
+  completeItem: WeeklyCalendarProps["completeItem"];
+  deleteItem: WeeklyCalendarProps["deleteItem"];
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item._id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+      className={`flex min-w-0 items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-1 ${
+        isDragging ? "z-10 opacity-50" : ""
+      }`}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        onClick={(event) => event.stopPropagation()}
+        style={{ touchAction: "none" }}
+        className="shrink-0 cursor-grab px-2 text-sm text-zinc-500 hover:text-zinc-200 active:cursor-grabbing"
+        aria-label={`Reorder ${item.title}`}
+        title="Drag to reorder"
+      >
+        ⋮⋮
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void completeItem(item._id)}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition ${
+          item.completed
+            ? "border-zinc-300 bg-zinc-100 text-zinc-950"
+            : "border-zinc-600 text-transparent hover:border-zinc-300"
+        }`}
+        aria-label={item.completed ? "Mark incomplete" : "Mark complete"}
+        title={item.completed ? "Mark incomplete" : "Mark complete"}
+      >
+        {item.completed ? (
+          <span className="text-[11px] font-bold leading-none">✓</span>
+        ) : null}
+      </button>
+
+      <button
+        type="button"
+        onClick={() => openTaskDetails(item)}
+        className={`flex min-w-0 flex-1 items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition hover:bg-zinc-800 ${
+          item.completed ? "text-zinc-500 line-through" : "text-zinc-200"
+        }`}
+      >
+        <PriorityIndicator priority={item.priority} />
+
+        <span className="min-w-0 flex-1">
+          <span className="block break-words">{item.title}</span>
+
+          {item.notes ? (
+            <span className="mt-1 block truncate text-xs text-zinc-500">
+              {item.notes}
+            </span>
+          ) : null}
+        </span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => void deleteItem(item._id)}
+        className="shrink-0 rounded-md p-1.5 text-zinc-600 transition hover:bg-zinc-800 hover:text-red-400"
+        aria-label={`Delete ${item.title}`}
+        title="Delete task"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
+
 function DayDetailModal({
   day,
   items,
@@ -318,6 +435,7 @@ function DayDetailModal({
   openTaskDetails,
   completeItem,
   deleteItem,
+  reorderDayTasks,
 }: {
   day: Date;
   items: CalendarTask[];
@@ -326,20 +444,24 @@ function DayDetailModal({
   openTaskDetails: WeeklyCalendarProps["openTaskDetails"];
   completeItem: WeeklyCalendarProps["completeItem"];
   deleteItem: WeeklyCalendarProps["deleteItem"];
+  reorderDayTasks: WeeklyCalendarProps["reorderDayTasks"];
 }) {
   const [adding, setAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const dayItems = items.filter(
-    (item) => item.date && isSameDay(new Date(item.date), day),
-  );
+  const dayItems = items
+    .filter((item) => item.date && isSameDay(new Date(item.date), day))
+    .sort(
+      (a, b) => (a.order ?? a.createdAt ?? 0) - (b.order ?? b.createdAt ?? 0),
+    );
 
   const submitNewTask = async () => {
     const title = newTaskTitle.trim();
     if (!title || saving) return;
 
     setSaving(true);
+
     try {
       await addTask(title, "scheduled", day.toISOString());
       setNewTaskTitle("");
@@ -362,6 +484,7 @@ function DayDetailModal({
             <h3 className="text-lg font-semibold text-zinc-100">
               {format(day, "EEEE, d MMMM yyyy")}
             </h3>
+
             <p className="mt-1 text-xs text-zinc-500">
               {dayItems.length} {dayItems.length === 1 ? "task" : "tasks"}{" "}
               scheduled
@@ -384,52 +507,61 @@ function DayDetailModal({
               <p className="text-sm text-zinc-400">
                 No tasks scheduled for this day.
               </p>
+
               <p className="mt-1 text-xs text-zinc-600">
                 Add a task below to get started.
               </p>
             </div>
           ) : (
-            dayItems.map((item) => (
-              <DraggableItem
-                key={item._id}
-                item={item}
-                dragId={`calendar-modal-${item._id}`}
-                completed={item.completed}
-                onComplete={() => void completeItem(item._id)}
-              >
-                <div className="flex min-w-0 items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => openTaskDetails(item)}
-                    className={`flex min-w-0 flex-1 items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition hover:bg-zinc-900 ${
-                      item.completed
-                        ? "text-zinc-500 line-through"
-                        : "text-zinc-200"
-                    }`}
-                  >
-                    <PriorityIndicator priority={item.priority} />
-                    <span className="min-w-0 flex-1">
-                      <span className="block break-words">{item.title}</span>
-                      {item.notes && (
-                        <span className="mt-1 block truncate text-xs text-zinc-500">
-                          {item.notes}
-                        </span>
-                      )}
-                    </span>
-                  </button>
+            <DndContext
+              collisionDetection={closestCenter}
+              onDragEnd={(event: DragEndEvent) => {
+                const { active, over } = event;
 
-                  <button
-                    type="button"
-                    onClick={() => void deleteItem(item._id)}
-                    className="shrink-0 rounded-md p-1.5 text-zinc-600 transition hover:bg-zinc-900 hover:text-red-400"
-                    aria-label={`Delete ${item.title}`}
-                    title="Delete task"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
+                if (!over || active.id === over.id) return;
+
+                const oldIndex = dayItems.findIndex(
+                  (task: CalendarTask) => task._id === active.id,
+                );
+
+                const newIndex = dayItems.findIndex(
+                  (task: CalendarTask) => task._id === over.id,
+                );
+
+                if (oldIndex < 0 || newIndex < 0) return;
+
+                const reordered = arrayMove(dayItems, oldIndex, newIndex);
+
+                const dayStart = new Date(day);
+                dayStart.setHours(0, 0, 0, 0);
+
+                const dayEnd = new Date(day);
+                dayEnd.setHours(23, 59, 59, 999);
+
+                void reorderDayTasks(
+                  reordered.map((task: CalendarTask) => task._id),
+                  dayStart.getTime(),
+                  dayEnd.getTime(),
+                );
+              }}
+            >
+              <SortableContext
+                items={dayItems.map((task) => task._id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-2">
+                  {dayItems.map((item) => (
+                    <SortableDayTask
+                      key={item._id}
+                      item={item}
+                      openTaskDetails={openTaskDetails}
+                      completeItem={completeItem}
+                      deleteItem={deleteItem}
+                    />
+                  ))}
                 </div>
-              </DraggableItem>
-            ))
+              </SortableContext>
+            </DndContext>
           )}
         </div>
 
@@ -455,6 +587,7 @@ function DayDetailModal({
                 placeholder="What needs to get done?"
                 className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-zinc-400"
               />
+
               <button
                 type="submit"
                 disabled={!newTaskTitle.trim() || saving}
@@ -462,6 +595,7 @@ function DayDetailModal({
               >
                 {saving ? "Adding..." : "Add"}
               </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -493,6 +627,7 @@ export default function WeeklyCalendar({
   items,
   completeItem,
   deleteItem,
+  reorderDayTasks,
   addTask,
   editingId,
   editingText,
@@ -505,6 +640,7 @@ export default function WeeklyCalendar({
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 }),
   );
+
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [expandedDay, setExpandedDay] = useState<Date | null>(null);
@@ -516,7 +652,9 @@ export default function WeeklyCalendar({
 
   const filteredItems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
+
     if (!query) return items;
+
     return items.filter((item) => item.title.toLowerCase().includes(query));
   }, [items, searchQuery]);
 
@@ -530,6 +668,7 @@ export default function WeeklyCalendar({
 
   const goToday = () => {
     const today = new Date();
+
     setWeekStart(startOfWeek(today, { weekStartsOn: 1 }));
     setSelectedDate(today);
     setExpandedDay(today);
@@ -572,6 +711,7 @@ export default function WeeklyCalendar({
 
         <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
+
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -607,12 +747,13 @@ export default function WeeklyCalendar({
       {expandedDay && (
         <DayDetailModal
           day={expandedDay}
-          items={filteredItems}
+          items={items}
           onClose={() => setExpandedDay(null)}
           addTask={addTask}
           openTaskDetails={openTaskDetails}
           completeItem={completeItem}
           deleteItem={deleteItem}
+          reorderDayTasks={reorderDayTasks}
         />
       )}
 
@@ -621,6 +762,7 @@ export default function WeeklyCalendar({
           {filteredItems.length} {filteredItems.length === 1 ? "task" : "tasks"}{" "}
           shown
         </span>
+
         <span>Week starts Monday</span>
       </div>
     </div>
