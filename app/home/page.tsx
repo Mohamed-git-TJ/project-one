@@ -27,6 +27,9 @@ type Status = "inbox" | "incubator" | "scheduled";
 
 type Item = {
   _id: Id<"tasks">;
+  order?: number;
+  createdAt?: number;
+  _creationTime?: number;
   title: string;
   status: Status;
   date?: string;
@@ -171,6 +174,27 @@ function IncubatorDropZone({
   );
 }
 
+function TaskReorderDropZone({
+  id,
+  enabled,
+  children,
+}: {
+  id: string;
+  enabled: boolean;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id, disabled: !enabled });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-lg transition ${enabled && isOver ? "ring-2 ring-zinc-300/70" : ""}`}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function InboxCard() {
   const items = (useQuery(api.tasks.getTasks) as Item[]) || [];
   const projects = useQuery(api.projects.getProjects) || [];
@@ -183,11 +207,14 @@ export default function InboxCard() {
   const editTask = useMutation(api.tasks.editTask);
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
   const reorderTasksMutation = useMutation(api.tasks.reorderDayTasks);
+  const reorderTasksInListMutation = useMutation(api.tasks.reorderTasksInList);
 
   const [projectInput, setProjectInput] = useState("");
   const [inboxInput, setInboxInput] = useState("");
   const [incubatorInput, setIncubatorInput] = useState("");
-  const [expanded, setExpanded] = useState<"inbox" | "incubator" | null>(null);
+  const [expanded, setExpanded] = useState<
+    "today" | "inbox" | "incubator" | null
+  >(null);
   const [activeItem, setActiveItem] = useState<Item | null>(null);
   const [editingId, setEditingId] = useState<Id<"tasks"> | null>(null);
   const [editingText, setEditingText] = useState("");
@@ -374,11 +401,16 @@ export default function InboxCard() {
     ? items.filter((item) => item.contexts?.includes(activeContext))
     : items;
 
-  const inboxItems = filteredItems.filter((item) => item.status === "inbox");
-
-  const incubatorItems = filteredItems.filter(
-    (item) => item.status === "incubator",
-  );
+  const sortTasksByOrder = (a: Item, b: Item) => {
+    if (a.order !== undefined && b.order !== undefined)
+      return a.order - b.order;
+    if (a.order !== undefined) return -1;
+    if (b.order !== undefined) return 1;
+    return (
+      (a.createdAt ?? a._creationTime ?? 0) -
+      (b.createdAt ?? b._creationTime ?? 0)
+    );
+  };
 
   const isSameDay = (a: Date, b: Date) =>
     a.getFullYear() === b.getFullYear() &&
@@ -387,12 +419,74 @@ export default function InboxCard() {
 
   const today = new Date();
 
-  const todayItems = filteredItems.filter(
-    (item) =>
-      item.status === "scheduled" &&
-      item.date &&
-      isSameDay(new Date(item.date), today),
-  );
+  const inboxItems = filteredItems
+    .filter((item) => item.status === "inbox")
+    .sort(sortTasksByOrder);
+
+  const incubatorItems = filteredItems
+    .filter((item) => item.status === "incubator")
+    .sort(sortTasksByOrder);
+
+  const todayItems = filteredItems
+    .filter(
+      (item) =>
+        item.status === "scheduled" &&
+        item.date &&
+        isSameDay(new Date(item.date), today),
+    )
+    .sort(sortTasksByOrder);
+
+  const reorderExpandedList = async (
+    taskId: Id<"tasks">,
+    targetTaskId: Id<"tasks">,
+    listType: "inbox" | "incubator" | "today",
+  ) => {
+    // Reorder the full list, including tasks hidden by an active context filter.
+    const listTasks = items
+      .filter((item) => {
+        if (listType === "inbox") return item.status === "inbox";
+        if (listType === "incubator") return item.status === "incubator";
+        return (
+          item.status === "scheduled" &&
+          Boolean(item.date) &&
+          isSameDay(new Date(item.date!), today)
+        );
+      })
+      .sort(sortTasksByOrder);
+
+    const fromIndex = listTasks.findIndex((item) => item._id === taskId);
+    const toIndex = listTasks.findIndex((item) => item._id === targetTaskId);
+    if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return;
+
+    const reordered = [...listTasks];
+    const [movedTask] = reordered.splice(fromIndex, 1);
+    reordered.splice(toIndex, 0, movedTask);
+
+    if (listType === "today") {
+      const dayStart = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate(),
+      ).getTime();
+      const dayEnd =
+        new Date(
+          today.getFullYear(),
+          today.getMonth(),
+          today.getDate() + 1,
+        ).getTime() - 1;
+      await reorderTasksInListMutation({
+        taskIds: reordered.map((item) => item._id),
+        listType,
+        dayStart,
+        dayEnd,
+      });
+    } else {
+      await reorderTasksInListMutation({
+        taskIds: reordered.map((item) => item._id),
+        listType,
+      });
+    }
+  };
 
   const todayCompleted = todayItems.filter((item) => item.completed).length;
 
@@ -436,6 +530,7 @@ export default function InboxCard() {
                 <DraggableItem
                   item={item}
                   dragId={`${type}-${item._id}`}
+                  disabled={Boolean(expanded) && expanded !== type}
                   completed={item.completed}
                   onComplete={() => completeItem(item._id)}
                 >
@@ -536,6 +631,13 @@ export default function InboxCard() {
       collisionDetection={(args) => {
         const pointerCollisions = pointerWithin(args);
 
+        if (expanded && pointerCollisions.length > 0) {
+          const sameListTargets = pointerCollisions.filter((collision) =>
+            collision.id.toString().startsWith(`reorder-${expanded}-`),
+          );
+          if (sameListTargets.length > 0) return sameListTargets;
+        }
+
         if (pointerCollisions.length > 0) {
           return pointerCollisions;
         }
@@ -573,6 +675,21 @@ export default function InboxCard() {
         const draggedItem = items.find((item) => item._id === itemId);
 
         if (!draggedItem) return;
+
+        // In an expanded card, dragging is strictly for reordering that same list.
+        // Dropping anywhere else must never move a task to another card or calendar date.
+        if (expanded) {
+          const draggedType = active.id.toString().split("-")[0];
+          const targetMatch = /^reorder-(today|inbox|incubator)-(.+)$/.exec(
+            overId,
+          );
+          if (!targetMatch) return;
+          const targetType = targetMatch[1] as "today" | "inbox" | "incubator";
+          const targetTaskId = targetMatch[2] as Id<"tasks">;
+          if (draggedType !== expanded || targetType !== expanded) return;
+          await reorderExpandedList(itemId, targetTaskId, expanded);
+          return;
+        }
 
         // =========================
         // MOVE TO INBOX
@@ -678,7 +795,13 @@ export default function InboxCard() {
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)]">
             {/* ==================== TODAY ==================== */}
             <TodayDropZone isDragging={Boolean(activeItem)}>
-              <Card className="border-zinc-800 bg-zinc-950/80 shadow-2xl">
+              <Card
+                className={`border-zinc-800 bg-zinc-950/80 shadow-2xl ${
+                  expanded === "today"
+                    ? "fixed inset-8 z-50 overflow-hidden shadow-2xl"
+                    : ""
+                }`}
+              >
                 <CardHeader className="border-b border-zinc-800 pb-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -700,13 +823,24 @@ export default function InboxCard() {
                       </p>
                     </div>
 
-                    <div className="text-right">
-                      <div className="text-sm font-medium text-zinc-500">
-                        {todayItems.length} tasks
-                      </div>
+                    <div className="flex items-start gap-3 text-right">
+                      {expanded === "today" && (
+                        <button
+                          className="text-sm text-zinc-400 hover:text-zinc-100"
+                          onClick={() => setExpanded(null)}
+                          aria-label="Close Today expanded view"
+                        >
+                          ✕
+                        </button>
+                      )}
+                      <div>
+                        <div className="text-sm font-medium text-zinc-500">
+                          {todayItems.length} tasks
+                        </div>
 
-                      <div className="mt-1 text-[11px] text-zinc-400">
-                        {todayCompleted} done · {todayPending} remaining
+                        <div className="mt-1 text-[11px] text-zinc-400">
+                          {todayCompleted} done · {todayPending} remaining
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -727,10 +861,18 @@ export default function InboxCard() {
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-2">
-                      {todayItems.map((item) =>
-                        renderCompactTask(item, "today"),
-                      )}
+                    <div
+                      className={`${expanded === "today" ? "max-h-[65vh] overflow-y-auto pr-1" : ""} space-y-2`}
+                    >
+                      {todayItems.map((item) => (
+                        <TaskReorderDropZone
+                          key={item._id}
+                          id={`reorder-today-${item._id}`}
+                          enabled={expanded === "today"}
+                        >
+                          {renderCompactTask(item, "today")}
+                        </TaskReorderDropZone>
+                      ))}
                     </div>
                   )}
 
@@ -739,21 +881,28 @@ export default function InboxCard() {
                       Focus on what matters today.
                     </span>
 
-                    <button
-                      onClick={() => {
-                        const todayTask = todayItems.find(
-                          (item) => !item.completed,
-                        );
-
-                        if (todayTask) {
-                          openTaskDetails(todayTask);
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() =>
+                          setExpanded(expanded === "today" ? null : "today")
                         }
-                      }}
-                      disabled={todayPending === 0}
-                      className="text-xs font-medium text-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                    >
-                      Review today →
-                    </button>
+                        className="text-xs font-medium text-zinc-400 hover:text-zinc-100"
+                      >
+                        {expanded === "today" ? "Close" : "View all →"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const todayTask = todayItems.find(
+                            (item) => !item.completed,
+                          );
+                          if (todayTask) openTaskDetails(todayTask);
+                        }}
+                        disabled={todayPending === 0}
+                        className="text-xs font-medium text-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Review today →
+                      </button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -842,9 +991,15 @@ export default function InboxCard() {
                           Your inbox is clear.
                         </p>
                       ) : (
-                        inboxItems.map((item) =>
-                          renderCompactTask(item, "inbox"),
-                        )
+                        inboxItems.map((item) => (
+                          <TaskReorderDropZone
+                            key={item._id}
+                            id={`reorder-inbox-${item._id}`}
+                            enabled={expanded === "inbox"}
+                          >
+                            {renderCompactTask(item, "inbox")}
+                          </TaskReorderDropZone>
+                        ))
                       )}
                     </div>
 
@@ -942,9 +1097,15 @@ export default function InboxCard() {
                           Nothing incubating yet.
                         </p>
                       ) : (
-                        incubatorItems.map((item) =>
-                          renderCompactTask(item, "incubator"),
-                        )
+                        incubatorItems.map((item) => (
+                          <TaskReorderDropZone
+                            key={item._id}
+                            id={`reorder-incubator-${item._id}`}
+                            enabled={expanded === "incubator"}
+                          >
+                            {renderCompactTask(item, "incubator")}
+                          </TaskReorderDropZone>
+                        ))
                       )}
                     </div>
 

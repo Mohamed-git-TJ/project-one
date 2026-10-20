@@ -480,3 +480,72 @@ export const deleteTask = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+export const reorderTasksInList = mutation({
+  args: {
+    taskIds: v.array(v.id("tasks")),
+    listType: v.union(
+      v.literal("inbox"),
+      v.literal("incubator"),
+      v.literal("today"),
+    ),
+    dayStart: v.optional(v.number()),
+    dayEnd: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    if (new Set(args.taskIds).size !== args.taskIds.length) {
+      throw new Error("Duplicate task IDs are not allowed");
+    }
+
+    if (
+      args.listType === "today" &&
+      (args.dayStart === undefined ||
+        args.dayEnd === undefined ||
+        args.dayStart > args.dayEnd)
+    ) {
+      throw new Error("A valid day range is required for Today");
+    }
+
+    const tasks = await Promise.all(args.taskIds.map((id) => ctx.db.get(id)));
+
+    for (const task of tasks) {
+      if (!task) {
+        throw new Error("Task not found");
+      }
+
+      if (task.userId !== identity.subject) {
+        throw new Error("Unauthorized");
+      }
+
+      if (args.listType === "inbox" || args.listType === "incubator") {
+        if (task.status !== args.listType) {
+          throw new Error("Task does not belong to this list");
+        }
+      } else {
+        if (task.status !== "scheduled" || !task.date) {
+          throw new Error("Only scheduled tasks can be reordered in Today");
+        }
+
+        const taskTime = new Date(task.date).getTime();
+
+        if (
+          Number.isNaN(taskTime) ||
+          taskTime < args.dayStart! ||
+          taskTime > args.dayEnd!
+        ) {
+          throw new Error("All tasks must belong to Today");
+        }
+      }
+    }
+
+    await Promise.all(
+      args.taskIds.map((id, index) => ctx.db.patch(id, { order: index })),
+    );
+  },
+});

@@ -4,9 +4,7 @@ import type { ReactNode } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 
-type DraggableTask = {
-  _id: string;
-};
+type DraggableTask = { _id: string };
 
 export default function DraggableItem({
   item,
@@ -14,21 +12,20 @@ export default function DraggableItem({
   completed,
   onComplete,
   dragId,
+  disabled = false,
 }: {
   item: DraggableTask;
   children: ReactNode;
   completed?: boolean;
   onComplete?: () => void;
   dragId?: string;
+  disabled?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: dragId ?? item._id,
-      data: {
-        type: "task",
-        taskId: item._id,
-        item,
-      },
+      disabled,
+      data: { type: "task", taskId: item._id, item },
     });
 
   return (
@@ -43,19 +40,22 @@ export default function DraggableItem({
       }`}
     >
       <button
-        {...listeners}
-        {...attributes}
+        {...(disabled ? {} : listeners)}
+        {...(disabled ? {} : attributes)}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          touchAction: "none",
-        }}
-        className="shrink-0 cursor-grab text-xs opacity-40 transition hover:opacity-100 active:cursor-grabbing"
-        aria-label="Drag task"
+        style={{ touchAction: "none" }}
+        className={`shrink-0 text-xs transition ${
+          disabled
+            ? "cursor-not-allowed opacity-20"
+            : "cursor-grab opacity-40 hover:opacity-100 active:cursor-grabbing"
+        }`}
+        aria-label={disabled ? "Reordering disabled" : "Drag task"}
+        aria-disabled={disabled}
         type="button"
+        disabled={disabled}
       >
         ⋮⋮
       </button>
-
       {onComplete && (
         <button
           type="button"
@@ -76,7 +76,6 @@ export default function DraggableItem({
           )}
         </button>
       )}
-
       <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
     </div>
   );
