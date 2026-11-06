@@ -631,23 +631,26 @@ export default function InboxCard() {
       collisionDetection={(args) => {
         const pointerCollisions = pointerWithin(args);
 
-        if (expanded && pointerCollisions.length > 0) {
-          const sameListTargets = pointerCollisions.filter((collision) =>
+        // While a card is expanded, ONLY its own task reorder targets are valid.
+        // No fallback collision detection: empty space and background cards are inert.
+        if (expanded) {
+          return pointerCollisions.filter((collision) =>
             collision.id.toString().startsWith(`reorder-${expanded}-`),
           );
-          if (sameListTargets.length > 0) return sameListTargets;
         }
 
-        if (pointerCollisions.length > 0) {
-          return pointerCollisions;
-        }
-
-        return closestCorners(args);
+        return pointerCollisions.length > 0
+          ? pointerCollisions
+          : closestCorners(args);
       }}
       onDragStart={(event) => {
         const itemId = event.active.data.current?.taskId as
           | Id<"tasks">
           | undefined;
+        const dragId = event.active.id.toString();
+
+        // A drag can only begin from the list currently shown in the modal.
+        if (expanded && !dragId.startsWith(`${expanded}-`)) return;
 
         const dragged = itemId
           ? items.find((item) => item._id === itemId)
@@ -755,11 +758,25 @@ export default function InboxCard() {
         }
       }}
     >
+      <style>{`
+        @keyframes mogtd-modal-in {
+          from { opacity: 0; scale: 0.975; }
+          to { opacity: 1; scale: 1; }
+        }
+        @keyframes mogtd-backdrop-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .mogtd-no-motion { animation: none !important; transition: none !important; }
+        }
+      `}</style>
+
       {(expanded || selectedTask) && (
         <div
           className={`fixed inset-0 ${
             selectedTask ? "z-[65]" : "z-40"
-          } bg-black/70 backdrop-blur-sm`}
+          } bg-black/70 backdrop-blur-sm motion-safe:animate-[mogtd-backdrop-in_180ms_ease-out]`}
           onClick={() => {
             setExpanded(null);
             setSelectedTask(null);
@@ -796,18 +813,36 @@ export default function InboxCard() {
             {/* ==================== TODAY ==================== */}
             <TodayDropZone isDragging={Boolean(activeItem)}>
               <Card
-                className={`border-zinc-800 bg-zinc-950/80 shadow-2xl ${
+                className={`border-zinc-800 bg-zinc-950/90 shadow-xl transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                   expanded === "today"
-                    ? "fixed inset-8 z-50 overflow-hidden shadow-2xl"
-                    : ""
+                    ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
+                    : "overflow-hidden"
                 }`}
               >
-                <CardHeader className="border-b border-zinc-800 pb-4">
+                <CardHeader
+                  tabIndex={0}
+                  aria-label="Expand or collapse Today"
+                  onClick={() =>
+                    setExpanded(expanded === "today" ? null : "today")
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setExpanded(expanded === "today" ? null : "today");
+                    }
+                  }}
+                  className="group cursor-pointer border-b border-zinc-800 pb-4 transition-colors duration-200 hover:bg-zinc-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
+                >
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <CardTitle className="text-lg font-semibold">
-                        Today
-                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg font-semibold">
+                          Today
+                        </CardTitle>
+                        <span className="text-xs text-zinc-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
+                          ↗
+                        </span>
+                      </div>
 
                       <p className="mt-1 text-xs text-zinc-400">
                         {today.toLocaleDateString(undefined, {
@@ -827,7 +862,10 @@ export default function InboxCard() {
                       {expanded === "today" && (
                         <button
                           className="text-sm text-zinc-400 hover:text-zinc-100"
-                          onClick={() => setExpanded(null)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpanded(null);
+                          }}
                           aria-label="Close Today expanded view"
                         >
                           ✕
@@ -846,7 +884,11 @@ export default function InboxCard() {
                   </div>
                 </CardHeader>
 
-                <CardContent className="p-4">
+                <CardContent
+                  className={`min-h-0 flex-1 overflow-y-auto p-4 ${
+                    expanded === "today" ? "overscroll-contain" : ""
+                  }`}
+                >
                   {todayItems.length === 0 ? (
                     <div className="flex min-h-[230px] flex-col items-center justify-center text-center">
                       <div className="mb-3 text-2xl text-zinc-500">○</div>
@@ -861,9 +903,7 @@ export default function InboxCard() {
                       </p>
                     </div>
                   ) : (
-                    <div
-                      className={`${expanded === "today" ? "max-h-[65vh] overflow-y-auto pr-1" : ""} space-y-2`}
-                    >
+                    <div className="space-y-2 pr-1">
                       {todayItems.map((item) => (
                         <TaskReorderDropZone
                           key={item._id}
@@ -913,22 +953,26 @@ export default function InboxCard() {
               {/* INBOX */}
               <InboxDropZone isDragging={Boolean(activeItem)}>
                 <Card
-                  className={`border-zinc-800 bg-zinc-950/80 shadow-2xl ${
+                  className={`border-zinc-800 bg-zinc-950/90 shadow-xl transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                     expanded === "inbox"
-                      ? "fixed inset-8 z-50 overflow-hidden shadow-2xl"
-                      : ""
+                      ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
+                      : "overflow-hidden"
                   }`}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest("button")) {
-                      return;
-                    }
-
-                    if (!expanded) {
-                      setExpanded("inbox");
-                    }
-                  }}
                 >
-                  <CardHeader className="relative pb-2">
+                  <CardHeader
+                    tabIndex={0}
+                    aria-label="Expand or collapse Inbox"
+                    onClick={() =>
+                      setExpanded(expanded === "inbox" ? null : "inbox")
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setExpanded(expanded === "inbox" ? null : "inbox");
+                      }
+                    }}
+                    className="group relative cursor-pointer pb-2 transition-colors duration-200 hover:bg-zinc-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
+                  >
                     {expanded === "inbox" && (
                       <button
                         className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
@@ -952,14 +996,21 @@ export default function InboxCard() {
                         </p>
                       </div>
 
-                      <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
-                        {inboxItems.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
+                          {inboxItems.length}
+                        </span>
+                        <span className="text-xs text-zinc-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
+                          ↗
+                        </span>
+                      </div>
                     </div>
                   </CardHeader>
 
                   <CardContent
-                    className="pt-2"
+                    className={`min-h-0 flex-1 overflow-y-auto pt-2 ${
+                      expanded === "inbox" ? "overscroll-contain" : ""
+                    }`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Textarea
@@ -982,9 +1033,9 @@ export default function InboxCard() {
                     <div
                       className={`${
                         expanded === "inbox"
-                          ? "mt-4 max-h-[70vh]"
-                          : "mt-3 max-h-28"
-                      } space-y-2 overflow-y-auto pr-1`}
+                          ? "mt-4"
+                          : "mt-3 max-h-28 overflow-y-auto"
+                      } space-y-2 pr-1`}
                     >
                       {inboxItems.length === 0 ? (
                         <p className="py-2 text-xs text-zinc-400">
@@ -1020,22 +1071,28 @@ export default function InboxCard() {
               {/* INCUBATOR */}
               <IncubatorDropZone isDragging={Boolean(activeItem)}>
                 <Card
-                  className={`border-zinc-800 bg-zinc-950/80 shadow-2xl ${
+                  className={`border-zinc-800 bg-zinc-950/90 shadow-xl transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                     expanded === "incubator"
-                      ? "fixed inset-8 z-50 overflow-hidden shadow-2xl"
-                      : ""
+                      ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
+                      : "overflow-hidden"
                   }`}
-                  onClick={(e) => {
-                    if ((e.target as HTMLElement).closest("button")) {
-                      return;
-                    }
-
-                    if (!expanded) {
-                      setExpanded("incubator");
-                    }
-                  }}
                 >
-                  <CardHeader className="relative pb-2">
+                  <CardHeader
+                    tabIndex={0}
+                    aria-label="Expand or collapse Incubator"
+                    onClick={() =>
+                      setExpanded(expanded === "incubator" ? null : "incubator")
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setExpanded(
+                          expanded === "incubator" ? null : "incubator",
+                        );
+                      }
+                    }}
+                    className="group relative cursor-pointer pb-2 transition-colors duration-200 hover:bg-zinc-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
+                  >
                     {expanded === "incubator" && (
                       <button
                         className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
@@ -1059,14 +1116,21 @@ export default function InboxCard() {
                         </p>
                       </div>
 
-                      <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
-                        {incubatorItems.length}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
+                          {incubatorItems.length}
+                        </span>
+                        <span className="text-xs text-zinc-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
+                          ↗
+                        </span>
+                      </div>
                     </div>
                   </CardHeader>
 
                   <CardContent
-                    className="pt-2"
+                    className={`min-h-0 flex-1 overflow-y-auto pt-2 ${
+                      expanded === "incubator" ? "overscroll-contain" : ""
+                    }`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Textarea
@@ -1088,9 +1152,9 @@ export default function InboxCard() {
                     <div
                       className={`${
                         expanded === "incubator"
-                          ? "mt-4 max-h-[70vh]"
-                          : "mt-3 max-h-28"
-                      } space-y-2 overflow-y-auto pr-1`}
+                          ? "mt-4"
+                          : "mt-3 max-h-28 overflow-y-auto"
+                      } space-y-2 pr-1`}
                     >
                       {incubatorItems.length === 0 ? (
                         <p className="py-2 text-xs text-zinc-400">
