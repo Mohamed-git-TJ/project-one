@@ -23,6 +23,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { ChevronDown, ChevronUp, Plus, Pencil } from "lucide-react";
+
 type Status = "inbox" | "incubator" | "scheduled";
 
 type Item = {
@@ -417,7 +419,66 @@ export default function InboxCard() {
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
 
-  const today = new Date();
+  // Keep the app's notion of "today" in state so it updates at local midnight,
+  // even when MoGTD stays open without any other interaction.
+  const [today, setToday] = useState(() => new Date());
+
+  useEffect(() => {
+    let midnightTimeout: ReturnType<typeof setTimeout> | null = null;
+
+    const updateTodayAndScheduleNext = () => {
+      const now = new Date();
+      setToday(now);
+
+      const nextLocalMidnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        0,
+        0,
+        50,
+      );
+
+      midnightTimeout = setTimeout(
+        updateTodayAndScheduleNext,
+        Math.max(1, nextLocalMidnight.getTime() - now.getTime()),
+      );
+    };
+
+    const refreshWhenActive = () => {
+      if (document.visibilityState === "visible") {
+        if (midnightTimeout) clearTimeout(midnightTimeout);
+        updateTodayAndScheduleNext();
+      }
+    };
+
+    // Schedule the first boundary update without changing the initial date.
+    const now = new Date();
+    const nextLocalMidnight = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+      0,
+      0,
+      0,
+      50,
+    );
+
+    midnightTimeout = setTimeout(
+      updateTodayAndScheduleNext,
+      Math.max(1, nextLocalMidnight.getTime() - now.getTime()),
+    );
+
+    window.addEventListener("focus", refreshWhenActive);
+    document.addEventListener("visibilitychange", refreshWhenActive);
+
+    return () => {
+      if (midnightTimeout) clearTimeout(midnightTimeout);
+      window.removeEventListener("focus", refreshWhenActive);
+      document.removeEventListener("visibilitychange", refreshWhenActive);
+    };
+  }, []);
 
   const inboxItems = filteredItems
     .filter((item) => item.status === "inbox")
@@ -509,6 +570,8 @@ export default function InboxCard() {
       {editingId === item._id ? (
         <input
           autoFocus
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           value={editingText}
           onChange={(e) => setEditingText(e.target.value)}
           onBlur={saveEdit}
@@ -534,13 +597,7 @@ export default function InboxCard() {
                   completed={item.completed}
                   onComplete={() => completeItem(item._id)}
                 >
-                  <div
-                    onDoubleClick={() => {
-                      setEditingId(item._id);
-                      setEditingText(item.title);
-                    }}
-                    className="min-w-0"
-                  >
+                  <div className="min-w-0">
                     <div className="flex min-w-0 items-start gap-2">
                       <PriorityIndicator priority={item.priority} />
                       <div
@@ -589,12 +646,28 @@ export default function InboxCard() {
 
       <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
         <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setEditingId(item._id);
+            setEditingText(item.title);
+          }}
+          className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+          title="Rename task"
+          aria-label={`Rename ${item.title}`}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+
+        <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation();
             openTaskDetails(item);
           }}
           className="rounded p-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
           title="Details"
+          aria-label={`Open details for ${item.title}`}
         >
           ⓘ
         </button>

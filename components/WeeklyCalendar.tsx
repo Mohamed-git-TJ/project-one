@@ -170,7 +170,7 @@ function CalendarDay({
       ref={setNodeRef}
       className={`relative min-w-0 overflow-hidden rounded-xl border p-1.5 transition-all duration-200 sm:p-2.5 ${
         isToday(day)
-          ? "min-h-[280px] border-zinc-700 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-100 sm:min-h-[300px]"
+          ? "min-h-[280px] border-zinc-600 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-500/40 sm:min-h-[300px]"
           : "min-h-[250px] border-zinc-800 bg-zinc-950/80 sm:min-h-[270px]"
       } ${isDragging ? "border-dashed border-zinc-600/80" : ""} ${
         isOver ? "bg-zinc-900/90 ring-2 ring-zinc-200" : ""
@@ -245,10 +245,6 @@ function CalendarDay({
                 <button
                   type="button"
                   onClick={() => openTaskDetails(item)}
-                  onDoubleClick={() => {
-                    setEditingId(item._id);
-                    setEditingText(item.title);
-                  }}
                   className={`flex min-w-0 flex-1 items-center gap-2 truncate rounded-md px-1.5 py-1 text-left text-xs transition hover:bg-zinc-900 ${
                     item.completed
                       ? "text-zinc-500 line-through"
