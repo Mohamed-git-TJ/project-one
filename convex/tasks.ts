@@ -24,6 +24,7 @@ function calculateNextOccurrence(
   currentDate: string,
   type: string,
   interval: number,
+  recurrenceDays?: string[],
 ) {
   const next = new Date(currentDate);
 
@@ -40,9 +41,46 @@ function calculateNextOccurrence(
       next.setDate(next.getDate() + interval);
       break;
 
-    case "weekly":
-      next.setDate(next.getDate() + interval * 7);
+    case "weekly": {
+      // Use UTC consistently with ISO timestamps stored in Convex.
+      // Eligible weeks begin on Monday; interval counts weeks, not individual days.
+      const weekdays = [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+      ];
+      const selected = new Set(
+        recurrenceDays?.length ? recurrenceDays : [weekdays[next.getUTCDay()]],
+      );
+      const currentDay = next.getUTCDay();
+      const mondayOffset = (currentDay + 6) % 7;
+      const weekStart = new Date(next);
+      weekStart.setUTCDate(weekStart.getUTCDate() - mondayOffset);
+      let found = false;
+      // Search the rest of this week, then eligible weeks at the requested interval.
+      for (let week = 0; week < 5200 && !found; week += interval) {
+        const start = new Date(weekStart);
+        start.setUTCDate(start.getUTCDate() + week * 7);
+        for (let day = 0; day < 7; day++) {
+          const candidate = new Date(start);
+          candidate.setUTCDate(candidate.getUTCDate() + day);
+          if (
+            candidate.getTime() > next.getTime() &&
+            selected.has(weekdays[candidate.getUTCDay()])
+          ) {
+            next.setTime(candidate.getTime());
+            found = true;
+            break;
+          }
+        }
+      }
+      if (!found) throw new Error("Unable to calculate next weekly occurrence");
       break;
+    }
 
     case "monthly": {
       // Clamp dates such as Jan 31 -> Feb 28/29 instead of rolling into March.
@@ -284,6 +322,30 @@ export const updateTaskDetails = mutation({
       throw new Error("Invalid recurrence end date");
     }
 
+    const validWeekdays = new Set([
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ]);
+    if (
+      args.recurrenceDays?.some((day) => !validWeekdays.has(day)) ||
+      (args.recurrenceDays &&
+        new Set(args.recurrenceDays).size !== args.recurrenceDays.length)
+    ) {
+      throw new Error("Invalid or duplicate recurrence weekdays");
+    }
+    if (
+      args.recurring &&
+      args.recurrenceType === "weekly" &&
+      args.recurrenceDays?.length === 0
+    ) {
+      throw new Error("Select at least one recurrence weekday");
+    }
+
     if (args.recurring) {
       if (!args.recurrenceType) {
         throw new Error("Recurring tasks need a recurrence type");
@@ -370,6 +432,7 @@ export const toggleComplete = mutation({
       task.date ?? new Date().toISOString(),
       task.recurrenceType,
       task.recurrenceInterval ?? 1,
+      task.recurrenceDays,
     );
 
     // CHECK END DATE

@@ -15,6 +15,7 @@ import {
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
+import { Pencil } from "lucide-react";
 
 import {
   Tooltip,
@@ -22,8 +23,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-
-import { ChevronDown, ChevronUp, Plus, Pencil } from "lucide-react";
 
 type Status = "inbox" | "incubator" | "scheduled";
 
@@ -205,6 +204,8 @@ export default function InboxCard() {
   const updateTask = useMutation(api.tasks.updateTask);
   const deleteTaskMutation = useMutation(api.tasks.deleteTask);
   const createProject = useMutation(api.projects.createProject);
+  const updateProjectMutation = useMutation(api.projects.updateProject);
+  const deleteProjectMutation = useMutation(api.projects.deleteProject);
   const toggleComplete = useMutation(api.tasks.toggleComplete);
   const editTask = useMutation(api.tasks.editTask);
   const updateTaskDetails = useMutation(api.tasks.updateTaskDetails);
@@ -212,6 +213,16 @@ export default function InboxCard() {
   const reorderTasksInListMutation = useMutation(api.tasks.reorderTasksInList);
 
   const [projectInput, setProjectInput] = useState("");
+  const [activeProjectId, setActiveProjectId] = useState<Id<"projects"> | null>(
+    null,
+  );
+  const [renamingProjectId, setRenamingProjectId] =
+    useState<Id<"projects"> | null>(null);
+  const [renamingProjectName, setRenamingProjectName] = useState("");
+  const [pendingProjectDeleteId, setPendingProjectDeleteId] =
+    useState<Id<"projects"> | null>(null);
+  const [projectBusy, setProjectBusy] = useState(false);
+  const [projectError, setProjectError] = useState("");
   const [inboxInput, setInboxInput] = useState("");
   const [incubatorInput, setIncubatorInput] = useState("");
   const [expanded, setExpanded] = useState<
@@ -220,6 +231,11 @@ export default function InboxCard() {
   const [activeItem, setActiveItem] = useState<Item | null>(null);
   const [editingId, setEditingId] = useState<Id<"tasks"> | null>(null);
   const [editingText, setEditingText] = useState("");
+  // Compact cards edit independently from WeeklyCalendar.
+  const [compactEditingId, setCompactEditingId] = useState<Id<"tasks"> | null>(
+    null,
+  );
+  const [compactEditingText, setCompactEditingText] = useState("");
   const [selectedTask, setSelectedTask] = useState<Item | null>(null);
   const [highlightedTask, setHighlightedTask] = useState<Id<"tasks"> | null>(
     null,
@@ -279,16 +295,45 @@ export default function InboxCard() {
     });
   };
 
-  const deleteItem = React.useCallback(
-    async (id: Id<"tasks">) => {
-      try {
-        await deleteTaskMutation({ id });
-      } catch (error) {
-        console.error("Delete failed:", error);
-      }
-    },
-    [deleteTaskMutation],
+  const [pendingDeleteId, setPendingDeleteId] = useState<Id<"tasks"> | null>(
+    null,
   );
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  // Every task deletion entry point requests confirmation first.
+  const deleteItem = React.useCallback(
+    async (id: Id<"tasks">): Promise<void> => {
+      setDeleteError("");
+      setPendingDeleteId(id);
+    },
+    [],
+  );
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      await deleteTaskMutation({ id: pendingDeleteId });
+      if (selectedTask?._id === pendingDeleteId) setSelectedTask(null);
+      if (highlightedTask === pendingDeleteId) setHighlightedTask(null);
+      if (editingId === pendingDeleteId) {
+        setEditingId(null);
+        setEditingText("");
+      }
+      if (compactEditingId === pendingDeleteId) {
+        setCompactEditingId(null);
+        setCompactEditingText("");
+      }
+      setPendingDeleteId(null);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      setDeleteError("Unable to delete this task. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const completeItem = async (id: Id<"tasks">) => {
     await toggleComplete({ id });
@@ -306,6 +351,30 @@ export default function InboxCard() {
     setEditingText("");
   };
 
+  const saveCompactEdit = async () => {
+    if (!compactEditingId || !compactEditingText.trim()) return;
+    await editTask({ id: compactEditingId, title: compactEditingText.trim() });
+    setCompactEditingId(null);
+    setCompactEditingText("");
+  };
+
+  const recurrenceWeekdays = [
+    { value: "monday", label: "Mon" },
+    { value: "tuesday", label: "Tue" },
+    { value: "wednesday", label: "Wed" },
+    { value: "thursday", label: "Thu" },
+    { value: "friday", label: "Fri" },
+    { value: "saturday", label: "Sat" },
+    { value: "sunday", label: "Sun" },
+  ];
+
+  const defaultRecurrenceDay = (date?: string) => {
+    const parsed = date ? new Date(date) : new Date();
+    return recurrenceWeekdays[
+      parsed.getUTCDay() === 0 ? 6 : parsed.getUTCDay() - 1
+    ].value;
+  };
+
   const openTaskDetails = (task: Item) => {
     setSelectedTask(task);
     setDetailsTitle(task.title);
@@ -317,7 +386,11 @@ export default function InboxCard() {
     setDetailsRecurrenceType(task.recurrenceType || "weekly");
     setDetailsRecurrenceInterval(task.recurrenceInterval || 1);
     setDetailsRecurrenceCount(task.recurrenceCount);
-    setDetailsRecurrenceDays(task.recurrenceDays || []);
+    setDetailsRecurrenceDays(
+      task.recurrenceDays?.length
+        ? task.recurrenceDays
+        : [defaultRecurrenceDay(task.date)],
+    );
     setDetailsRecurrenceEndDate(task.recurrenceEndDate || "");
   };
 
@@ -329,6 +402,15 @@ export default function InboxCard() {
       detailsRecurrenceCount !== undefined &&
       detailsRecurrenceCount < 1
     ) {
+      return;
+    }
+
+    if (
+      detailsRecurring &&
+      detailsRecurrenceType === "weekly" &&
+      detailsRecurrenceDays.length === 0
+    ) {
+      window.alert("Select at least one weekday for weekly recurrence.");
       return;
     }
 
@@ -345,7 +427,10 @@ export default function InboxCard() {
         ? detailsRecurrenceInterval
         : undefined,
       recurrenceCount: detailsRecurring ? detailsRecurrenceCount : undefined,
-      recurrenceDays: detailsRecurring ? detailsRecurrenceDays : undefined,
+      recurrenceDays:
+        detailsRecurring && detailsRecurrenceType === "weekly"
+          ? detailsRecurrenceDays
+          : undefined,
       recurrenceEndDate: detailsRecurring
         ? detailsRecurrenceEndDate
         : undefined,
@@ -367,6 +452,15 @@ export default function InboxCard() {
         return;
       }
 
+      if (pendingDeleteId) {
+        if (e.key === "Escape" && !isDeleting) {
+          e.preventDefault();
+          setPendingDeleteId(null);
+          setDeleteError("");
+        }
+        return;
+      }
+
       if (e.key === "n" || e.key === "N") {
         e.preventDefault();
         setExpanded("inbox");
@@ -381,16 +475,15 @@ export default function InboxCard() {
       }
 
       if (e.key === "Delete" && selectedTask) {
-        deleteItem(selectedTask._id);
-        setSelectedTask(null);
-        setHighlightedTask(null);
+        e.preventDefault();
+        void deleteItem(selectedTask._id);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
 
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedTask, deleteItem]);
+  }, [selectedTask, deleteItem, pendingDeleteId, isDeleting]);
 
   const allContexts = Array.from(
     new Set([
@@ -399,9 +492,51 @@ export default function InboxCard() {
     ]),
   );
 
-  const filteredItems = activeContext
-    ? items.filter((item) => item.contexts?.includes(activeContext))
-    : items;
+  const filteredItems = items.filter(
+    (item) =>
+      (!activeContext || item.contexts?.includes(activeContext)) &&
+      (!activeProjectId || item.projectId === activeProjectId),
+  );
+
+  const saveProjectName = async () => {
+    if (!renamingProjectId || !renamingProjectName.trim() || projectBusy)
+      return;
+    setProjectBusy(true);
+    setProjectError("");
+    try {
+      await updateProjectMutation({
+        id: renamingProjectId,
+        name: renamingProjectName.trim(),
+      });
+      setRenamingProjectId(null);
+      setRenamingProjectName("");
+    } catch (error) {
+      console.error("Rename project failed:", error);
+      setProjectError("Could not rename project. Please try again.");
+    } finally {
+      setProjectBusy(false);
+    }
+  };
+
+  const confirmProjectDelete = async () => {
+    if (!pendingProjectDeleteId || projectBusy) return;
+    setProjectBusy(true);
+    setProjectError("");
+    try {
+      await deleteProjectMutation({ id: pendingProjectDeleteId });
+      if (activeProjectId === pendingProjectDeleteId) setActiveProjectId(null);
+      if (detailsProjectId === pendingProjectDeleteId)
+        setDetailsProjectId(undefined);
+      if (renamingProjectId === pendingProjectDeleteId)
+        setRenamingProjectId(null);
+      setPendingProjectDeleteId(null);
+    } catch (error) {
+      console.error("Delete project failed:", error);
+      setProjectError("Could not delete project. Please try again.");
+    } finally {
+      setProjectBusy(false);
+    }
+  };
 
   const sortTasksByOrder = (a: Item, b: Item) => {
     if (a.order !== undefined && b.order !== undefined)
@@ -560,6 +695,8 @@ export default function InboxCard() {
     <div
       key={item._id}
       onClick={() => {
+        // Clicking the inline editor must never open Task Details.
+        if (compactEditingId === item._id) return;
         openTaskDetails(item);
         setHighlightedTask(item._id);
       }}
@@ -567,24 +704,55 @@ export default function InboxCard() {
         highlightedTask === item._id ? "ring-1 ring-zinc-300/60" : ""
       } ${item.completed ? "opacity-55" : ""}`}
     >
-      {editingId === item._id ? (
-        <input
-          autoFocus
+      {compactEditingId === item._id ? (
+        <div
+          className="flex min-w-0 flex-1 items-center gap-2"
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          value={editingText}
-          onChange={(e) => setEditingText(e.target.value)}
-          onBlur={saveEdit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") saveEdit();
-
-            if (e.key === "Escape") {
-              setEditingId(null);
-              setEditingText("");
-            }
-          }}
-          className="min-w-0 flex-1 rounded border px-2 py-1 text-sm outline-none"
-        />
+        >
+          <input
+            autoFocus
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            value={compactEditingText}
+            onChange={(e) => setCompactEditingText(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void saveCompactEdit();
+              }
+              if (e.key === "Escape") {
+                e.preventDefault();
+                setCompactEditingId(null);
+                setCompactEditingText("");
+              }
+            }}
+            className="min-w-0 flex-1 rounded border border-zinc-600 bg-zinc-950 px-2 py-1 text-sm text-zinc-100 outline-none focus:border-zinc-300"
+            aria-label="Edit task title"
+          />
+          <button
+            type="button"
+            onClick={() => void saveCompactEdit()}
+            disabled={!compactEditingText.trim()}
+            className="rounded px-2 py-1 text-xs text-zinc-100 hover:bg-zinc-700 disabled:opacity-40"
+            aria-label="Save task title"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setCompactEditingId(null);
+              setCompactEditingText("");
+            }}
+            className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-700"
+            aria-label="Cancel editing task title"
+          >
+            Cancel
+          </button>
+        </div>
       ) : (
         <TooltipProvider delayDuration={200}>
           <Tooltip>
@@ -649,8 +817,8 @@ export default function InboxCard() {
           type="button"
           onClick={(e) => {
             e.stopPropagation();
-            setEditingId(item._id);
-            setEditingText(item.title);
+            setCompactEditingId(item._id);
+            setCompactEditingText(item.title);
           }}
           className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
           title="Rename task"
@@ -1268,9 +1436,7 @@ export default function InboxCard() {
               items={filteredItems}
               moveItem={moveItem}
               completeItem={completeItem}
-              deleteItem={async (id) => {
-                await deleteTaskMutation({ id });
-              }}
+              deleteItem={deleteItem}
               addTask={async (title, status, date) => {
                 const id = await createTask({
                   title,
@@ -1352,16 +1518,114 @@ export default function InboxCard() {
                   </button>
                 </div>
 
-                {projects.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    {projects.map((project) => (
-                      <span
+                <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setActiveProjectId(null)}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${activeProjectId === null ? "border-zinc-200 bg-zinc-100 text-zinc-950" : "border-zinc-700 text-zinc-400 hover:text-white"}`}
+                  >
+                    All projects
+                  </button>
+                  {projects.map((project) => {
+                    const count = items.filter(
+                      (item) => item.projectId === project._id,
+                    ).length;
+                    return (
+                      <div
                         key={project._id}
-                        className="rounded-full border border-zinc-800 bg-zinc-900/70 px-2 py-0.5 text-[9px] text-zinc-500"
+                        className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${activeProjectId === project._id ? "border-zinc-300 bg-zinc-800" : "border-zinc-800 bg-zinc-900/70"}`}
                       >
-                        {project.name}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveProjectId(
+                              activeProjectId === project._id
+                                ? null
+                                : project._id,
+                            )
+                          }
+                          className="px-1 text-[11px] text-zinc-200"
+                          title={`Show tasks in ${project.name}`}
+                        >
+                          {project.name}{" "}
+                          <span className="text-zinc-500">({count})</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRenamingProjectId(project._id);
+                            setRenamingProjectName(project.name);
+                            setProjectError("");
+                          }}
+                          aria-label={`Rename ${project.name}`}
+                          title="Rename project"
+                          className="rounded p-1 text-zinc-500 hover:text-white"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPendingProjectDeleteId(project._id);
+                            setProjectError("");
+                          }}
+                          aria-label={`Delete ${project.name}`}
+                          title="Delete project"
+                          className="rounded px-1 text-xs text-zinc-500 hover:text-red-400"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {activeProjectId && (
+                  <div className="mt-3 border-t border-zinc-800 pt-3">
+                    <div className="mb-2 flex items-center justify-between text-xs text-zinc-400">
+                      <span>
+                        Tasks in{" "}
+                        {projects.find(
+                          (project) => project._id === activeProjectId,
+                        )?.name ?? "project"}
                       </span>
-                    ))}
+                      <button
+                        type="button"
+                        onClick={() => setActiveProjectId(null)}
+                        className="hover:text-white"
+                      >
+                        Clear filter
+                      </button>
+                    </div>
+                    <div className="max-h-48 space-y-1 overflow-y-auto">
+                      {items.filter(
+                        (item) => item.projectId === activeProjectId,
+                      ).length === 0 ? (
+                        <p className="text-xs text-zinc-500">
+                          No tasks assigned yet. Open a task's details to assign
+                          it.
+                        </p>
+                      ) : (
+                        items
+                          .filter((item) => item.projectId === activeProjectId)
+                          .map((item) => (
+                            <button
+                              key={item._id}
+                              type="button"
+                              onClick={() => openTaskDetails(item)}
+                              className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs text-zinc-300 hover:bg-zinc-900"
+                            >
+                              <span
+                                className={`truncate ${item.completed ? "text-zinc-500 line-through" : ""}`}
+                              >
+                                {item.title}
+                              </span>
+                              <span className="shrink-0 text-[10px] text-zinc-500">
+                                {item.status}
+                              </span>
+                            </button>
+                          ))
+                      )}
+                    </div>
                   </div>
                 )}
               </CardContent>
@@ -1650,6 +1914,47 @@ export default function InboxCard() {
                       </span>
                     </div>
 
+                    {detailsRecurrenceType === "weekly" && (
+                      <div className="space-y-2">
+                        <label className="text-sm text-zinc-400">
+                          Repeat on
+                        </label>
+                        <div className="grid grid-cols-7 gap-1">
+                          {recurrenceWeekdays.map((day) => {
+                            const selected = detailsRecurrenceDays.includes(
+                              day.value,
+                            );
+                            return (
+                              <button
+                                key={day.value}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() =>
+                                  setDetailsRecurrenceDays((current) =>
+                                    current.includes(day.value)
+                                      ? current.filter(
+                                          (value) => value !== day.value,
+                                        )
+                                      : [...current, day.value],
+                                  )
+                                }
+                                className={`rounded-md border px-1 py-2 text-xs transition-colors ${
+                                  selected
+                                    ? "border-zinc-300 bg-zinc-200 text-zinc-950"
+                                    : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
+                                }`}
+                              >
+                                {day.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-zinc-500">
+                          Choose one or more weekdays.
+                        </p>
+                      </div>
+                    )}
+
                     <div>
                       <label className="text-sm text-zinc-400">
                         Number of repeats
@@ -1699,14 +2004,7 @@ export default function InboxCard() {
 
               <div className="sticky bottom-0 flex justify-between border-t border-zinc-800 bg-zinc-950 pt-4">
                 <button
-                  onClick={async () => {
-                    const taskId = selectedTask._id;
-
-                    setSelectedTask(null);
-                    setHighlightedTask(null);
-
-                    await deleteItem(taskId);
-                  }}
+                  onClick={() => void deleteItem(selectedTask._id)}
                   className="text-sm text-red-500 hover:text-red-600"
                 >
                   Delete
@@ -1721,6 +2019,169 @@ export default function InboxCard() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* ==================== PROJECT RENAME ==================== */}
+      {renamingProjectId && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Rename project"
+            className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+          >
+            <h2 className="text-lg font-semibold">Rename project</h2>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveProjectName();
+              }}
+            >
+              <input
+                autoFocus
+                value={renamingProjectName}
+                onChange={(event) => setRenamingProjectName(event.target.value)}
+                className="mt-4 w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm outline-none focus:border-zinc-400"
+              />
+              {projectError && (
+                <p role="alert" className="mt-2 text-sm text-red-400">
+                  {projectError}
+                </p>
+              )}
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  disabled={projectBusy}
+                  onClick={() => {
+                    setRenamingProjectId(null);
+                    setProjectError("");
+                  }}
+                  className="rounded-lg border border-zinc-700 px-4 py-2 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={projectBusy || !renamingProjectName.trim()}
+                  className="rounded-lg bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+                >
+                  Save name
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ==================== PROJECT DELETE CONFIRMATION ==================== */}
+      {pendingProjectDeleteId && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-label="Delete project"
+            className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+          >
+            <h2 className="text-lg font-semibold">Delete project?</h2>
+            <p className="mt-3 text-sm leading-6 text-zinc-400">
+              Delete{" "}
+              <strong className="text-zinc-100">
+                {projects.find(
+                  (project) => project._id === pendingProjectDeleteId,
+                )?.name ?? "this project"}
+              </strong>
+              ? Its tasks will be kept, but they will no longer belong to this
+              project. This cannot be undone.
+            </p>
+            {projectError && (
+              <p role="alert" className="mt-2 text-sm text-red-400">
+                {projectError}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                autoFocus
+                disabled={projectBusy}
+                onClick={() => {
+                  setPendingProjectDeleteId(null);
+                  setProjectError("");
+                }}
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={projectBusy}
+                onClick={() => void confirmProjectDelete()}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              >
+                {projectBusy ? "Deleting..." : "Delete project"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== DELETE CONFIRMATION ==================== */}
+      {pendingDeleteId && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm"
+          role="presentation"
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="mogtd-delete-title"
+            aria-describedby="mogtd-delete-description"
+            className="w-full max-w-md rounded-2xl border border-zinc-700 bg-zinc-950 p-6 shadow-2xl"
+          >
+            <h2
+              id="mogtd-delete-title"
+              className="text-lg font-semibold text-zinc-100"
+            >
+              Delete task?
+            </h2>
+            <p
+              id="mogtd-delete-description"
+              className="mt-3 break-words text-sm leading-6 text-zinc-400"
+            >
+              Are you sure you want to permanently delete{" "}
+              <span className="font-medium text-zinc-100">
+                {items.find((item) => item._id === pendingDeleteId)?.title ??
+                  "this task"}
+              </span>
+              ? This action cannot be undone.
+            </p>
+            {deleteError && (
+              <p role="alert" className="mt-3 text-sm text-red-400">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                autoFocus
+                disabled={isDeleting}
+                onClick={() => {
+                  setPendingDeleteId(null);
+                  setDeleteError("");
+                }}
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-900 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => void confirmDelete()}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {isDeleting ? "Deleting..." : "Delete task"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

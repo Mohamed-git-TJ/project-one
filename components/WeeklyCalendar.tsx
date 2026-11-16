@@ -1,7 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import {
   addDays,
   addWeeks,
@@ -119,6 +126,7 @@ type CalendarDayProps = {
   setSelectedDate: (date: Date | null) => void;
   setExpandedDay: (date: Date | null) => void;
   isDragging: boolean;
+  isDayModalOpen: boolean;
 };
 
 function CalendarDay({
@@ -137,6 +145,7 @@ function CalendarDay({
   setSelectedDate,
   setExpandedDay,
   isDragging,
+  isDayModalOpen,
 }: CalendarDayProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: day.toISOString(),
@@ -225,7 +234,7 @@ function CalendarDay({
             onComplete={() => completeItem(item._id)}
           >
             <div className="flex min-w-0 items-center gap-1">
-              {editingId === item._id ? (
+              {editingId === item._id && !isDayModalOpen ? (
                 <input
                   autoFocus
                   value={editingText}
@@ -335,11 +344,21 @@ function SortableDayTask({
   openTaskDetails,
   completeItem,
   deleteItem,
+  editingId,
+  editingText,
+  setEditingId,
+  setEditingText,
+  saveEdit,
 }: {
   item: CalendarTask;
   openTaskDetails: WeeklyCalendarProps["openTaskDetails"];
   completeItem: WeeklyCalendarProps["completeItem"];
   deleteItem: WeeklyCalendarProps["deleteItem"];
+  editingId: WeeklyCalendarProps["editingId"];
+  editingText: WeeklyCalendarProps["editingText"];
+  setEditingId: WeeklyCalendarProps["setEditingId"];
+  setEditingText: WeeklyCalendarProps["setEditingText"];
+  saveEdit: WeeklyCalendarProps["saveEdit"];
 }) {
   const {
     attributes,
@@ -390,25 +409,82 @@ function SortableDayTask({
         ) : null}
       </button>
 
-      <button
-        type="button"
-        onClick={() => openTaskDetails(item)}
-        className={`flex min-w-0 flex-1 items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition hover:bg-zinc-800 ${
-          item.completed ? "text-zinc-500 line-through" : "text-zinc-200"
-        }`}
-      >
-        <PriorityIndicator priority={item.priority} />
-
-        <span className="min-w-0 flex-1">
-          <span className="block break-words">{item.title}</span>
-
-          {item.notes ? (
-            <span className="mt-1 block truncate text-xs text-zinc-500">
-              {item.notes}
+      {editingId === item._id ? (
+        <div
+          className="flex min-w-0 flex-1 items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            autoFocus
+            value={editingText}
+            onChange={(e) => setEditingText(e.target.value)}
+            onPointerDown={(e) => e.stopPropagation()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                if (editingText.trim()) void saveEdit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                setEditingId(null);
+                setEditingText("");
+              }
+            }}
+            aria-label={`Edit ${item.title}`}
+            className="min-w-0 flex-1 rounded-md border border-zinc-600 bg-zinc-950 px-2 py-2 text-sm text-zinc-100 outline-none focus:border-zinc-300"
+          />
+          <button
+            type="button"
+            onClick={() => void saveEdit()}
+            disabled={!editingText.trim()}
+            className="shrink-0 rounded-md px-2 py-1 text-xs text-zinc-100 hover:bg-zinc-800 disabled:opacity-40"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingId(null);
+              setEditingText("");
+            }}
+            className="shrink-0 rounded-md px-2 py-1 text-xs text-zinc-400 hover:bg-zinc-800"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <>
+          <button
+            type="button"
+            onClick={() => openTaskDetails(item)}
+            className={`flex min-w-0 flex-1 items-start gap-2 rounded-md px-2 py-2 text-left text-sm transition hover:bg-zinc-800 ${
+              item.completed ? "text-zinc-500 line-through" : "text-zinc-200"
+            }`}
+          >
+            <PriorityIndicator priority={item.priority} />
+            <span className="min-w-0 flex-1">
+              <span className="block break-words">{item.title}</span>
+              {item.notes ? (
+                <span className="mt-1 block truncate text-xs text-zinc-500">
+                  {item.notes}
+                </span>
+              ) : null}
             </span>
-          ) : null}
-        </span>
-      </button>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditingId(item._id);
+              setEditingText(item.title);
+            }}
+            className="shrink-0 rounded-md p-1.5 text-zinc-500 transition hover:bg-zinc-800 hover:text-zinc-100"
+            aria-label={`Rename ${item.title}`}
+            title="Rename task"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        </>
+      )}
 
       <button
         type="button"
@@ -432,6 +508,11 @@ function DayDetailModal({
   completeItem,
   deleteItem,
   reorderDayTasks,
+  editingId,
+  editingText,
+  setEditingId,
+  setEditingText,
+  saveEdit,
 }: {
   day: Date;
   items: CalendarTask[];
@@ -441,6 +522,11 @@ function DayDetailModal({
   completeItem: WeeklyCalendarProps["completeItem"];
   deleteItem: WeeklyCalendarProps["deleteItem"];
   reorderDayTasks: WeeklyCalendarProps["reorderDayTasks"];
+  editingId: WeeklyCalendarProps["editingId"];
+  editingText: WeeklyCalendarProps["editingText"];
+  setEditingId: WeeklyCalendarProps["setEditingId"];
+  setEditingText: WeeklyCalendarProps["setEditingText"];
+  saveEdit: WeeklyCalendarProps["saveEdit"];
 }) {
   const [adding, setAdding] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
@@ -553,6 +639,11 @@ function DayDetailModal({
                       openTaskDetails={openTaskDetails}
                       completeItem={completeItem}
                       deleteItem={deleteItem}
+                      editingId={editingId}
+                      editingText={editingText}
+                      setEditingId={setEditingId}
+                      setEditingText={setEditingText}
+                      saveEdit={saveEdit}
                     />
                   ))}
                 </div>
@@ -736,6 +827,7 @@ export default function WeeklyCalendar({
             setSelectedDate={setSelectedDate}
             setExpandedDay={setExpandedDay}
             isDragging={isDragging}
+            isDayModalOpen={expandedDay !== null}
           />
         ))}
       </div>
@@ -750,6 +842,11 @@ export default function WeeklyCalendar({
           completeItem={completeItem}
           deleteItem={deleteItem}
           reorderDayTasks={reorderDayTasks}
+          editingId={editingId}
+          editingText={editingText}
+          setEditingId={setEditingId}
+          setEditingText={setEditingText}
+          saveEdit={saveEdit}
         />
       )}
 
