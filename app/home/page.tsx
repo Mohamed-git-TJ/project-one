@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import WeeklyCalendar from "@/components/WeeklyCalendar";
@@ -272,15 +272,63 @@ export default function InboxCard() {
   const [detailsRecurrenceEndDate, setDetailsRecurrenceEndDate] = useState("");
   const [focusInboxInput, setFocusInboxInput] = useState(false);
 
+  // Stage F: centralized mutation feedback and synchronous duplicate protection.
+  const pendingActions = useRef(new Set<string>());
+  const [busyActions, setBusyActions] = useState<string[]>([]);
+  const [notice, setNotice] = useState<{
+    id: number;
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
+  const noticeCounter = useRef(0);
+  const notify = (kind: "success" | "error", message: string) => {
+    setNotice({ id: ++noticeCounter.current, kind, message });
+  };
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(
+      () =>
+        setNotice((current) => (current?.id === notice.id ? null : current)),
+      4000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  const runAction = async <T,>(
+    key: string,
+    success: string | null,
+    failure: string,
+    action: () => Promise<T>,
+  ): Promise<{ ok: true; value: T } | { ok: false }> => {
+    if (pendingActions.current.has(key)) return { ok: false };
+    pendingActions.current.add(key);
+    setBusyActions((current) => [...current, key]);
+    try {
+      const value = await action();
+      if (success) notify("success", success);
+      return { ok: true, value };
+    } catch (error) {
+      console.error(failure, error);
+      notify("error", failure);
+      return { ok: false };
+    } finally {
+      pendingActions.current.delete(key);
+      setBusyActions((current) => current.filter((item) => item !== key));
+    }
+  };
+  const isBusy = (key: string) => busyActions.includes(key);
+
   const defaultContexts = ["@Work", "@Home", "@Computer", "@Phone", "@Errands"];
 
-  const addItem = async (title: string, status: Status) => {
-    if (!title.trim()) return;
-
-    await createTask({
-      title: title.trim(),
-      status,
-    });
+  const addItem = async (title: string, status: Status): Promise<boolean> => {
+    if (!title.trim()) return false;
+    const result = await runAction(
+      `create:${status}`,
+      "Task created",
+      "Could not create task. Please retry.",
+      () => createTask({ title: title.trim(), status }),
+    );
+    return result.ok;
   };
 
   const moveItem = async (
@@ -288,11 +336,12 @@ export default function InboxCard() {
     status: Status,
     date?: string,
   ): Promise<void> => {
-    await updateTask({
-      id,
-      status,
-      date,
-    });
+    await runAction(
+      `move:${id}`,
+      "Task moved",
+      "Could not move task. Please retry.",
+      () => updateTask({ id, status, date }),
+    );
   };
 
   const [pendingDeleteId, setPendingDeleteId] = useState<Id<"tasks"> | null>(
@@ -327,35 +376,53 @@ export default function InboxCard() {
         setCompactEditingText("");
       }
       setPendingDeleteId(null);
+      notify("success", "Task deleted");
     } catch (error) {
       console.error("Delete failed:", error);
       setDeleteError("Unable to delete this task. Please try again.");
+      notify("error", "Unable to delete this task. Please try again.");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const completeItem = async (id: Id<"tasks">) => {
-    await toggleComplete({ id });
+  const completeItem = async (id: Id<"tasks">): Promise<void> => {
+    await runAction(
+      `complete:${id}`,
+      "Task updated",
+      "Could not update task completion.",
+      () => toggleComplete({ id }),
+    );
   };
 
-  const saveEdit = async () => {
+  const saveEdit = async (): Promise<void> => {
     if (!editingId || !editingText.trim()) return;
-
-    await editTask({
-      id: editingId,
-      title: editingText.trim(),
-    });
-
-    setEditingId(null);
-    setEditingText("");
+    const id = editingId;
+    const result = await runAction(
+      `edit:${id}`,
+      "Task title saved",
+      "Could not save task title.",
+      () => editTask({ id, title: editingText.trim() }),
+    );
+    if (result.ok) {
+      setEditingId(null);
+      setEditingText("");
+    }
   };
 
-  const saveCompactEdit = async () => {
+  const saveCompactEdit = async (): Promise<void> => {
     if (!compactEditingId || !compactEditingText.trim()) return;
-    await editTask({ id: compactEditingId, title: compactEditingText.trim() });
-    setCompactEditingId(null);
-    setCompactEditingText("");
+    const id = compactEditingId;
+    const result = await runAction(
+      `edit:${id}`,
+      "Task title saved",
+      "Could not save task title.",
+      () => editTask({ id, title: compactEditingText.trim() }),
+    );
+    if (result.ok) {
+      setCompactEditingId(null);
+      setCompactEditingText("");
+    }
   };
 
   const recurrenceWeekdays = [
@@ -414,27 +481,36 @@ export default function InboxCard() {
       return;
     }
 
-    await updateTaskDetails({
-      id: selectedTask._id,
-      title: detailsTitle.trim(),
-      notes: detailsNotes,
-      priority: detailsPriority,
-      contexts: detailsContexts,
-      projectId: detailsProjectId,
-      recurring: detailsRecurring,
-      recurrenceType: detailsRecurring ? detailsRecurrenceType : undefined,
-      recurrenceInterval: detailsRecurring
-        ? detailsRecurrenceInterval
-        : undefined,
-      recurrenceCount: detailsRecurring ? detailsRecurrenceCount : undefined,
-      recurrenceDays:
-        detailsRecurring && detailsRecurrenceType === "weekly"
-          ? detailsRecurrenceDays
-          : undefined,
-      recurrenceEndDate: detailsRecurring
-        ? detailsRecurrenceEndDate
-        : undefined,
-    });
+    const result = await runAction(
+      `details:${selectedTask._id}`,
+      "Task details saved",
+      "Could not save task details.",
+      () =>
+        updateTaskDetails({
+          id: selectedTask._id,
+          title: detailsTitle.trim(),
+          notes: detailsNotes,
+          priority: detailsPriority,
+          contexts: detailsContexts,
+          projectId: detailsProjectId,
+          recurring: detailsRecurring,
+          recurrenceType: detailsRecurring ? detailsRecurrenceType : undefined,
+          recurrenceInterval: detailsRecurring
+            ? detailsRecurrenceInterval
+            : undefined,
+          recurrenceCount: detailsRecurring
+            ? detailsRecurrenceCount
+            : undefined,
+          recurrenceDays:
+            detailsRecurring && detailsRecurrenceType === "weekly"
+              ? detailsRecurrenceDays
+              : undefined,
+          recurrenceEndDate: detailsRecurring
+            ? detailsRecurrenceEndDate
+            : undefined,
+        }),
+    );
+    if (!result.ok) return;
 
     setSelectedTask(null);
     setHighlightedTask(null);
@@ -510,9 +586,11 @@ export default function InboxCard() {
       });
       setRenamingProjectId(null);
       setRenamingProjectName("");
+      notify("success", "Project renamed");
     } catch (error) {
       console.error("Rename project failed:", error);
       setProjectError("Could not rename project. Please try again.");
+      notify("error", "Could not rename project.");
     } finally {
       setProjectBusy(false);
     }
@@ -530,9 +608,11 @@ export default function InboxCard() {
       if (renamingProjectId === pendingProjectDeleteId)
         setRenamingProjectId(null);
       setPendingProjectDeleteId(null);
+      notify("success", "Project deleted");
     } catch (error) {
       console.error("Delete project failed:", error);
       setProjectError("Could not delete project. Please try again.");
+      notify("error", "Could not delete project.");
     } finally {
       setProjectBusy(false);
     }
@@ -670,17 +750,29 @@ export default function InboxCard() {
           today.getMonth(),
           today.getDate() + 1,
         ).getTime() - 1;
-      await reorderTasksInListMutation({
-        taskIds: reordered.map((item) => item._id),
-        listType,
-        dayStart,
-        dayEnd,
-      });
+      await runAction(
+        `reorder:${listType}`,
+        null,
+        "Could not reorder tasks.",
+        () =>
+          reorderTasksInListMutation({
+            taskIds: reordered.map((item) => item._id),
+            listType,
+            dayStart,
+            dayEnd,
+          }),
+      );
     } else {
-      await reorderTasksInListMutation({
-        taskIds: reordered.map((item) => item._id),
-        listType,
-      });
+      await runAction(
+        `reorder:${listType}`,
+        null,
+        "Could not reorder tasks.",
+        () =>
+          reorderTasksInListMutation({
+            taskIds: reordered.map((item) => item._id),
+            listType,
+          }),
+      );
     }
   };
 
@@ -735,7 +827,7 @@ export default function InboxCard() {
           <button
             type="button"
             onClick={() => void saveCompactEdit()}
-            disabled={!compactEditingText.trim()}
+            disabled={!compactEditingText.trim() || isBusy(`edit:${item._id}`)}
             className="rounded px-2 py-1 text-xs text-zinc-100 hover:bg-zinc-700 disabled:opacity-40"
             aria-label="Save task title"
           >
@@ -1026,6 +1118,23 @@ export default function InboxCard() {
         />
       )}
 
+      {notice && (
+        <div
+          role={notice.kind === "error" ? "alert" : "status"}
+          aria-live={notice.kind === "error" ? "assertive" : "polite"}
+          className={`fixed bottom-5 right-5 z-[100] flex max-w-sm items-center gap-3 rounded-xl border px-4 py-3 text-sm shadow-2xl ${notice.kind === "error" ? "border-red-500/50 bg-zinc-900 text-red-200" : "border-zinc-600 bg-zinc-900 text-zinc-100"}`}
+        >
+          <span>{notice.message}</span>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="Dismiss notification"
+            className="ml-auto text-zinc-400 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div className="min-h-screen w-full bg-zinc-950 text-zinc-100">
         <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
           {/* ==================== HEADER ==================== */}
@@ -1264,9 +1373,8 @@ export default function InboxCard() {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
 
-                          await addItem(inboxInput, "inbox");
-
-                          setInboxInput("");
+                          if (await addItem(inboxInput, "inbox"))
+                            setInboxInput("");
                         }
                       }}
                     />
@@ -1383,9 +1491,8 @@ export default function InboxCard() {
                         if (e.key === "Enter" && !e.shiftKey) {
                           e.preventDefault();
 
-                          await addItem(incubatorInput, "incubator");
-
-                          setIncubatorInput("");
+                          if (await addItem(incubatorInput, "incubator"))
+                            setIncubatorInput("");
                         }
                       }}
                     />
@@ -1438,18 +1545,20 @@ export default function InboxCard() {
               completeItem={completeItem}
               deleteItem={deleteItem}
               addTask={async (title, status, date) => {
-                const id = await createTask({
-                  title,
-                  status,
-                });
-
-                if (date) {
-                  await updateTask({
-                    id,
-                    status: "scheduled",
-                    date,
-                  });
-                }
+                const result = await runAction(
+                  `calendar-create:${date ?? status}`,
+                  "Task created",
+                  "Could not create calendar task.",
+                  async () => {
+                    const id = await createTask({ title, status });
+                    if (date)
+                      await updateTask({ id, status: "scheduled", date });
+                  },
+                );
+                if (!result.ok)
+                  throw new Error(
+                    "Calendar task creation failed; see notification",
+                  );
               }}
               editingId={editingId}
               editingText={editingText}
@@ -1459,11 +1568,17 @@ export default function InboxCard() {
               openTaskDetails={openTaskDetails}
               isDragging={Boolean(activeItem)}
               reorderDayTasks={async (taskIds, dayStart, dayEnd) => {
-                await reorderTasksMutation({
-                  taskIds,
-                  dayStart,
-                  dayEnd,
-                });
+                await runAction(
+                  `calendar-reorder:${dayStart}`,
+                  null,
+                  "Could not reorder calendar tasks.",
+                  () =>
+                    reorderTasksMutation({
+                      taskIds,
+                      dayStart,
+                      dayEnd,
+                    }),
+                );
               }}
             />
           </div>
@@ -1491,11 +1606,13 @@ export default function InboxCard() {
                     onChange={(e) => setProjectInput(e.target.value)}
                     onKeyDown={async (e) => {
                       if (e.key === "Enter" && projectInput.trim()) {
-                        await createProject({
-                          name: projectInput.trim(),
-                        });
-
-                        setProjectInput("");
+                        const result = await runAction(
+                          "project-create",
+                          "Project created",
+                          "Could not create project.",
+                          () => createProject({ name: projectInput.trim() }),
+                        );
+                        if (result.ok) setProjectInput("");
                       }
                     }}
                     placeholder="Create a project..."
@@ -1506,11 +1623,13 @@ export default function InboxCard() {
                     onClick={async () => {
                       if (!projectInput.trim()) return;
 
-                      await createProject({
-                        name: projectInput.trim(),
-                      });
-
-                      setProjectInput("");
+                      const result = await runAction(
+                        "project-create",
+                        "Project created",
+                        "Could not create project.",
+                        () => createProject({ name: projectInput.trim() }),
+                      );
+                      if (result.ok) setProjectInput("");
                     }}
                     className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-100"
                   >

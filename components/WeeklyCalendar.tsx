@@ -169,9 +169,13 @@ function CalendarDay({
     const title = newTaskTitle.trim();
     if (!title) return;
 
-    await addTask(title, "scheduled", day.toISOString());
-    setNewTaskTitle("");
-    setAdding(false);
+    try {
+      await addTask(title, "scheduled", day.toISOString());
+      setNewTaskTitle("");
+      setAdding(false);
+    } catch {
+      // Parent displays the failure toast; preserve the draft for retry.
+    }
   };
 
   return (
@@ -548,6 +552,8 @@ function DayDetailModal({
       await addTask(title, "scheduled", day.toISOString());
       setNewTaskTitle("");
       setAdding(false);
+    } catch {
+      // Parent displays the failure toast; preserve the draft for retry.
     } finally {
       setSaving(false);
     }
