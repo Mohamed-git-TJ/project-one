@@ -792,7 +792,7 @@ export default function InboxCard() {
         openTaskDetails(item);
         setHighlightedTask(item._id);
       }}
-      className={`group flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 transition hover:border-zinc-600 hover:bg-zinc-800 ${
+      className={`group flex items-center gap-3 rounded-xl border border-zinc-800/90 bg-zinc-900/75 px-3.5 py-3 shadow-sm transition-[background-color,border-color,box-shadow] duration-200 hover:border-zinc-600 hover:bg-zinc-800/90 hover:shadow-md ${
         highlightedTask === item._id ? "ring-1 ring-zinc-300/60" : ""
       } ${item.completed ? "opacity-55" : ""}`}
     >
@@ -876,7 +876,7 @@ export default function InboxCard() {
                         {item.contexts.map((context) => (
                           <span
                             key={context}
-                            className="rounded-full bg-zinc-900 px-1.5 py-0.5 text-[9px] text-zinc-400"
+                            className="rounded-md border border-zinc-700/60 bg-zinc-800/75 px-2 py-0.5 text-[10px] font-medium text-zinc-300"
                           >
                             {context}
                           </span>
@@ -1163,7 +1163,7 @@ export default function InboxCard() {
             {/* ==================== TODAY ==================== */}
             <TodayDropZone isDragging={Boolean(activeItem)}>
               <Card
-                className={`border-zinc-800 bg-zinc-950/90 shadow-xl transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
+                className={`border-zinc-700/80 bg-gradient-to-b from-zinc-900/95 to-zinc-950 shadow-[0_16px_48px_rgba(0,0,0,0.25)] ring-1 ring-white/[0.035] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                   expanded === "today"
                     ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
                     : "overflow-hidden"
@@ -1186,7 +1186,7 @@ export default function InboxCard() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <CardTitle className="text-lg font-semibold">
+                        <CardTitle className="text-xl font-semibold tracking-tight text-zinc-50">
                           Today
                         </CardTitle>
                         <span className="text-xs text-zinc-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
@@ -1235,7 +1235,7 @@ export default function InboxCard() {
                 </CardHeader>
 
                 <CardContent
-                  className={`min-h-0 flex-1 overflow-y-auto p-4 ${
+                  className={`min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 ${
                     expanded === "today" ? "overscroll-contain" : ""
                   }`}
                 >
@@ -1811,9 +1811,14 @@ export default function InboxCard() {
       {/* ==================== TASK DETAILS MODAL ==================== */}
       {selectedTask && (
         <div className="fixed left-1/2 top-1/2 z-[70] w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
-          <Card className="flex max-h-[90vh] flex-col border-zinc-800 bg-zinc-950/80 shadow-2xl">
-            <CardHeader className="relative border-b border-zinc-800">
-              <CardTitle>Task Details</CardTitle>
+          <Card className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border-zinc-700/80 bg-zinc-950 shadow-[0_28px_90px_rgba(0,0,0,0.65)]">
+            <CardHeader className="relative border-b border-zinc-800 bg-gradient-to-r from-zinc-900 to-zinc-950 px-6 py-5">
+              <CardTitle className="text-lg font-semibold tracking-tight">
+                Task Details
+              </CardTitle>
+              <p className="mt-1 text-xs text-zinc-500">
+                Organise the details that keep your day moving.
+              </p>
 
               <button
                 className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
@@ -1826,7 +1831,15 @@ export default function InboxCard() {
               </button>
             </CardHeader>
 
-            <CardContent className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5">
+            <CardContent className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 sm:p-6">
+              <div className="border-b border-zinc-800/80 pb-2">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-300">
+                  General
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  What needs to be done
+                </p>
+              </div>
               <div>
                 <label className="text-sm text-zinc-400">Title</label>
 
@@ -1851,6 +1864,15 @@ export default function InboxCard() {
                     }
                   }}
                 />
+              </div>
+
+              <div className="border-b border-zinc-800/80 pb-2 pt-2">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-300">
+                  Organisation
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Priority, project and contexts
+                </p>
               </div>
 
               <div>
@@ -1982,6 +2004,14 @@ export default function InboxCard() {
               </div>
 
               {/* ==================== REPEAT ==================== */}
+              <div className="border-b border-zinc-800/80 pb-2 pt-2">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-300">
+                  Recurrence
+                </h3>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Set a repeating rhythm for this task
+                </p>
+              </div>
               <div className="space-y-3">
                 <label className="text-sm text-zinc-400">Repeat</label>
 

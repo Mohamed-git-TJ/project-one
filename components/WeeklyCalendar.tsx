@@ -183,8 +183,8 @@ function CalendarDay({
       ref={setNodeRef}
       className={`relative min-w-0 overflow-hidden rounded-xl border p-1.5 transition-all duration-200 sm:p-2.5 ${
         isToday(day)
-          ? "min-h-[280px] border-zinc-600 bg-zinc-900/70 shadow-sm ring-1 ring-zinc-500/40 sm:min-h-[300px]"
-          : "min-h-[250px] border-zinc-800 bg-zinc-950/80 sm:min-h-[270px]"
+          ? "min-h-[280px] border-zinc-400/80 bg-gradient-to-b from-zinc-800/95 to-zinc-900/90 shadow-[0_10px_35px_rgba(0,0,0,0.35)] ring-2 ring-zinc-400/40 sm:min-h-[300px]"
+          : "min-h-[250px] border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 sm:min-h-[270px]"
       } ${isDragging ? "border-dashed border-zinc-600/80" : ""} ${
         isOver ? "bg-zinc-900/90 ring-2 ring-zinc-200" : ""
       }`}
@@ -380,7 +380,7 @@ function SortableDayTask({
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className={`flex min-w-0 items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/50 p-1 ${
+      className={`flex min-w-0 items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/65 p-2 shadow-sm transition-colors hover:border-zinc-700 hover:bg-zinc-800/60 ${
         isDragging ? "z-10 opacity-50" : ""
       }`}
     >
@@ -566,8 +566,8 @@ function DayDetailModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-zinc-800 p-5">
+      <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-700/80 bg-zinc-950 shadow-[0_28px_100px_rgba(0,0,0,0.75)]">
+        <div className="flex items-center justify-between border-b border-zinc-800 bg-gradient-to-r from-zinc-900 to-zinc-950 px-5 py-6 sm:px-7">
           <div>
             <h3 className="text-lg font-semibold text-zinc-100">
               {format(day, "EEEE, d MMMM yyyy")}
@@ -589,7 +589,7 @@ function DayDetailModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5 sm:p-7">
           {dayItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-10 text-center">
               <p className="text-sm text-zinc-400">
@@ -658,7 +658,7 @@ function DayDetailModal({
           )}
         </div>
 
-        <div className="border-t border-zinc-800 p-4">
+        <div className="border-t border-zinc-800 bg-zinc-900/35 p-4 sm:px-7 sm:py-5">
           {adding ? (
             <form
               className="flex gap-2"
