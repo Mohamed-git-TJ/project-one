@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  FolderKanban,
+  Tags,
   Pencil,
   Plus,
   Search,
@@ -108,6 +111,8 @@ type WeeklyCalendarProps = {
   saveEdit: () => Promise<void>;
   openTaskDetails: (task: CalendarTask) => void;
   isDragging: boolean;
+  projectControls?: ReactNode;
+  contextControls?: ReactNode;
 };
 
 type CalendarDayProps = {
@@ -181,10 +186,10 @@ function CalendarDay({
   return (
     <div
       ref={setNodeRef}
-      className={`relative min-w-0 overflow-hidden rounded-xl border p-1.5 transition-all duration-200 sm:p-2.5 ${
+      className={`relative min-w-0 overflow-hidden rounded-2xl border p-2.5 transition-all duration-200 sm:p-3 ${
         isToday(day)
-          ? "min-h-[280px] border-zinc-400/80 bg-gradient-to-b from-zinc-800/95 to-zinc-900/90 shadow-[0_10px_35px_rgba(0,0,0,0.35)] ring-2 ring-zinc-400/40 sm:min-h-[300px]"
-          : "min-h-[250px] border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 sm:min-h-[270px]"
+          ? "min-h-[290px] border-zinc-200 bg-gradient-to-b from-[#343638] to-[#252729] shadow-[0_14px_42px_rgba(0,0,0,0.4)] ring-1 ring-zinc-200/60 sm:min-h-[320px]"
+          : "min-h-[260px] border-zinc-700/50 bg-gradient-to-b from-[#222426] to-[#191a1c] hover:border-zinc-500 sm:min-h-[290px]"
       } ${isDragging ? "border-dashed border-zinc-600/80" : ""} ${
         isOver ? "bg-zinc-900/90 ring-2 ring-zinc-200" : ""
       }`}
@@ -203,7 +208,7 @@ function CalendarDay({
           setSelectedDate(day);
           setExpandedDay(day);
         }}
-        className={`mb-2 flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left transition ${
+        className={`mb-3 flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition ${
           isSelected
             ? "bg-zinc-100 text-zinc-950"
             : "text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100"
@@ -211,10 +216,10 @@ function CalendarDay({
         title="Open all tasks for this day"
       >
         <div>
-          <div className="text-xs font-medium uppercase tracking-wide">
+          <div className="text-xs font-semibold uppercase tracking-wide">
             {format(day, "EEE")}
           </div>
-          <div className="text-sm font-semibold">{format(day, "d")}</div>
+          <div className="text-base font-semibold">{format(day, "d")}</div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -228,7 +233,7 @@ function CalendarDay({
         </div>
       </button>
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         {visibleItems.map((item) => (
           <DraggableItem
             key={item._id}
@@ -380,7 +385,7 @@ function SortableDayTask({
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className={`flex min-w-0 items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/65 p-2 shadow-sm transition-colors hover:border-zinc-700 hover:bg-zinc-800/60 ${
+      className={`flex min-w-0 items-center gap-3 rounded-xl border border-zinc-700/65 bg-[#292b2d] p-3.5 shadow-sm transition-colors hover:border-zinc-500 hover:bg-zinc-800/70 ${
         isDragging ? "z-10 opacity-50" : ""
       }`}
     >
@@ -566,7 +571,7 @@ function DayDetailModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-zinc-700/80 bg-zinc-950 shadow-[0_28px_100px_rgba(0,0,0,0.75)]">
+      <div className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-zinc-600/70 bg-[#191a1c] shadow-[0_35px_110px_rgba(0,0,0,0.8)]">
         <div className="flex items-center justify-between border-b border-zinc-800 bg-gradient-to-r from-zinc-900 to-zinc-950 px-5 py-6 sm:px-7">
           <div>
             <h3 className="text-lg font-semibold text-zinc-100">
@@ -589,7 +594,7 @@ function DayDetailModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5 sm:p-7">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5 sm:p-8">
           {dayItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-10 text-center">
               <p className="text-sm text-zinc-400">
@@ -729,6 +734,8 @@ export default function WeeklyCalendar({
   saveEdit,
   openTaskDetails,
   isDragging,
+  projectControls,
+  contextControls,
 }: WeeklyCalendarProps) {
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 }),
@@ -737,6 +744,28 @@ export default function WeeklyCalendar({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [expandedDay, setExpandedDay] = useState<Date | null>(null);
+  const [openOrganizer, setOpenOrganizer] = useState<
+    "projects" | "contexts" | null
+  >(null);
+  const organizerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!openOrganizer) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!organizerRef.current?.contains(event.target as Node)) {
+        setOpenOrganizer(null);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenOrganizer(null);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [openOrganizer]);
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)),
@@ -768,8 +797,8 @@ export default function WeeklyCalendar({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-700/55 bg-[#242628] px-4 py-3">
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -802,6 +831,60 @@ export default function WeeklyCalendar({
           {format(weekStart, "d MMM")} – {format(weekDays[6], "d MMM yyyy")}
         </div>
 
+        <div
+          ref={organizerRef}
+          className="relative z-30 flex flex-wrap items-center gap-2"
+        >
+          {projectControls && (
+            <button
+              type="button"
+              aria-expanded={openOrganizer === "projects"}
+              aria-controls="mogtd-projects-panel"
+              onClick={() =>
+                setOpenOrganizer((current) =>
+                  current === "projects" ? null : "projects",
+                )
+              }
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${openOrganizer === "projects" ? "border-zinc-400 bg-zinc-700 text-white" : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500 hover:text-white"}`}
+            >
+              <FolderKanban className="h-3.5 w-3.5" /> Projects{" "}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {contextControls && (
+            <button
+              type="button"
+              aria-expanded={openOrganizer === "contexts"}
+              aria-controls="mogtd-contexts-panel"
+              onClick={() =>
+                setOpenOrganizer((current) =>
+                  current === "contexts" ? null : "contexts",
+                )
+              }
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${openOrganizer === "contexts" ? "border-zinc-400 bg-zinc-700 text-white" : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500 hover:text-white"}`}
+            >
+              <Tags className="h-3.5 w-3.5" /> Contexts{" "}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {openOrganizer === "projects" && projectControls && (
+            <div
+              id="mogtd-projects-panel"
+              className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,560px)] w-[min(90vw,440px)] overflow-y-auto rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
+            >
+              {projectControls}
+            </div>
+          )}
+          {openOrganizer === "contexts" && contextControls && (
+            <div
+              id="mogtd-contexts-panel"
+              className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,440px)] w-[min(90vw,360px)] overflow-y-auto rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
+            >
+              {contextControls}
+            </div>
+          )}
+        </div>
+
         <div className="relative w-full sm:w-56">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
 
@@ -814,7 +897,7 @@ export default function WeeklyCalendar({
         </div>
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
+      <div className="grid min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {weekDays.map((day) => (
           <CalendarDay
             key={day.toISOString()}

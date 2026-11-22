@@ -792,7 +792,7 @@ export default function InboxCard() {
         openTaskDetails(item);
         setHighlightedTask(item._id);
       }}
-      className={`group flex items-center gap-3 rounded-xl border border-zinc-800/90 bg-zinc-900/75 px-3.5 py-3 shadow-sm transition-[background-color,border-color,box-shadow] duration-200 hover:border-zinc-600 hover:bg-zinc-800/90 hover:shadow-md ${
+      className={`group flex items-center gap-3.5 rounded-xl border border-zinc-700/65 bg-[#282a2c]/90 px-4 py-4 shadow-[0_2px_10px_rgba(0,0,0,0.12)] transition-[background-color,border-color,box-shadow] duration-200 hover:border-zinc-500/80 hover:bg-zinc-800/90 hover:shadow-md ${
         highlightedTask === item._id ? "ring-1 ring-zinc-300/60" : ""
       } ${item.completed ? "opacity-55" : ""}`}
     >
@@ -1135,14 +1135,16 @@ export default function InboxCard() {
           </button>
         </div>
       )}
-      <div className="min-h-screen w-full bg-zinc-950 text-zinc-100">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div className="min-h-screen w-full bg-[#111214] text-zinc-100">
+        <div className="mx-auto max-w-[1720px] px-4 py-7 sm:px-7 lg:px-9 xl:px-12">
           {/* ==================== HEADER ==================== */}
-          <header className="mb-6 flex items-center justify-between">
+          <header className="mb-8 flex flex-wrap items-center justify-between gap-4 pb-2">
             <div>
-              <div className="text-xl font-semibold tracking-tight">MoGTD</div>
+              <div className="text-3xl font-bold tracking-[-0.055em] text-white sm:text-[34px]">
+                MoGTD
+              </div>
 
-              <div className="mt-0.5 text-xs text-zinc-400">
+              <div className="mt-1 text-sm text-zinc-400">
                 Your personal system for getting things done.
               </div>
             </div>
@@ -1152,18 +1154,18 @@ export default function InboxCard() {
                 setExpanded("inbox");
                 setFocusInboxInput(true);
               }}
-              className="rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm font-medium text-zinc-100 shadow-sm transition hover:border-zinc-600 hover:bg-zinc-800"
+              className="rounded-xl border border-zinc-600/70 bg-gradient-to-b from-zinc-700 to-zinc-800 px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_24px_rgba(0,0,0,0.24)] transition hover:border-zinc-400 hover:from-zinc-600 hover:to-zinc-700"
             >
               + Capture
             </button>
           </header>
 
           {/* ==================== TOP ROW ==================== */}
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(320px,1fr)]">
+          <div className="grid items-stretch gap-4 lg:grid-cols-[minmax(0,1.75fr)_minmax(320px,1fr)] xl:grid-cols-[minmax(0,1.9fr)_minmax(340px,1fr)]">
             {/* ==================== TODAY ==================== */}
             <TodayDropZone isDragging={Boolean(activeItem)}>
               <Card
-                className={`border-zinc-700/80 bg-gradient-to-b from-zinc-900/95 to-zinc-950 shadow-[0_16px_48px_rgba(0,0,0,0.25)] ring-1 ring-white/[0.035] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
+                className={`border-zinc-500/75 bg-gradient-to-br from-[#282a2c] via-[#202123] to-[#191a1c] shadow-[0_12px_36px_rgba(0,0,0,0.3)] ring-1 ring-white/[0.045] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                   expanded === "today"
                     ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
                     : "overflow-hidden"
@@ -1181,12 +1183,12 @@ export default function InboxCard() {
                       setExpanded(expanded === "today" ? null : "today");
                     }
                   }}
-                  className="group cursor-pointer border-b border-zinc-800 pb-4 transition-colors duration-200 hover:bg-zinc-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
+                  className="group cursor-pointer border-b border-zinc-700/65 px-5 pb-5 pt-5 transition-colors duration-200 hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <CardTitle className="text-xl font-semibold tracking-tight text-zinc-50">
+                        <CardTitle className="text-2xl font-semibold tracking-tight text-zinc-50">
                           Today
                         </CardTitle>
                         <span className="text-xs text-zinc-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
@@ -1235,7 +1237,7 @@ export default function InboxCard() {
                 </CardHeader>
 
                 <CardContent
-                  className={`min-h-0 flex-1 overflow-y-auto p-4 sm:p-5 ${
+                  className={`min-h-0 flex-1 overflow-y-auto p-5 sm:p-6 ${
                     expanded === "today" ? "overscroll-contain" : ""
                   }`}
                 >
@@ -1253,7 +1255,7 @@ export default function InboxCard() {
                       </p>
                     </div>
                   ) : (
-                    <div className="space-y-2 pr-1">
+                    <div className="space-y-2.5 pr-1">
                       {todayItems.map((item) => (
                         <TaskReorderDropZone
                           key={item._id}
@@ -1266,7 +1268,7 @@ export default function InboxCard() {
                     </div>
                   )}
 
-                  <div className="mt-4 flex items-center justify-between border-t border-zinc-800 pt-3">
+                  <div className="mt-5 flex items-center justify-between border-t border-zinc-700/65 pt-4">
                     <span className="text-[11px] text-zinc-400">
                       Focus on what matters today.
                     </span>
@@ -1303,7 +1305,7 @@ export default function InboxCard() {
               {/* INBOX */}
               <InboxDropZone isDragging={Boolean(activeItem)}>
                 <Card
-                  className={`border-zinc-800 bg-zinc-950/90 shadow-xl transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
+                  className={`border-zinc-700/75 bg-gradient-to-br from-[#222426] to-[#191a1c] shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                     expanded === "inbox"
                       ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
                       : "overflow-hidden"
@@ -1384,7 +1386,7 @@ export default function InboxCard() {
                         expanded === "inbox"
                           ? "mt-4"
                           : "mt-3 max-h-28 overflow-y-auto"
-                      } space-y-2 pr-1`}
+                      } space-y-2.5 pr-1`}
                     >
                       {inboxItems.length === 0 ? (
                         <p className="py-2 text-xs text-zinc-400">
@@ -1420,7 +1422,7 @@ export default function InboxCard() {
               {/* INCUBATOR */}
               <IncubatorDropZone isDragging={Boolean(activeItem)}>
                 <Card
-                  className={`border-zinc-800 bg-zinc-950/90 shadow-xl transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
+                  className={`border-zinc-700/75 bg-gradient-to-br from-[#222426] to-[#191a1c] shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                     expanded === "incubator"
                       ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
                       : "overflow-hidden"
@@ -1502,7 +1504,7 @@ export default function InboxCard() {
                         expanded === "incubator"
                           ? "mt-4"
                           : "mt-3 max-h-28 overflow-y-auto"
-                      } space-y-2 pr-1`}
+                      } space-y-2.5 pr-1`}
                     >
                       {incubatorItems.length === 0 ? (
                         <p className="py-2 text-xs text-zinc-400">
@@ -1538,7 +1540,7 @@ export default function InboxCard() {
           </div>
 
           {/* ==================== CALENDAR ==================== */}
-          <div className="mt-4">
+          <div className="mt-6">
             <WeeklyCalendar
               items={filteredItems}
               moveItem={moveItem}
@@ -1567,6 +1569,234 @@ export default function InboxCard() {
               saveEdit={saveEdit}
               openTaskDetails={openTaskDetails}
               isDragging={Boolean(activeItem)}
+              projectControls={
+                <>
+                  <Card className="border-zinc-700/70 bg-gradient-to-br from-[#222426] to-[#191a1c] shadow-lg">
+                    <CardHeader className="px-4 pb-2 pt-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-xs font-medium text-zinc-300">
+                          Projects
+                        </CardTitle>
+
+                        <span className="text-[10px] text-zinc-500">
+                          {projects.length} active
+                        </span>
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="px-4 pb-3 pt-0">
+                      <div className="flex gap-2">
+                        <input
+                          value={projectInput}
+                          onChange={(e) => setProjectInput(e.target.value)}
+                          onKeyDown={async (e) => {
+                            if (e.key === "Enter" && projectInput.trim()) {
+                              const result = await runAction(
+                                "project-create",
+                                "Project created",
+                                "Could not create project.",
+                                () =>
+                                  createProject({ name: projectInput.trim() }),
+                              );
+                              if (result.ok) setProjectInput("");
+                            }
+                          }}
+                          placeholder="Create a project..."
+                          className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-zinc-900/80 px-2.5 py-1.5 text-[11px] text-zinc-200 outline-none transition placeholder:text-zinc-500 focus:border-zinc-700"
+                        />
+
+                        <button
+                          onClick={async () => {
+                            if (!projectInput.trim()) return;
+
+                            const result = await runAction(
+                              "project-create",
+                              "Project created",
+                              "Could not create project.",
+                              () =>
+                                createProject({ name: projectInput.trim() }),
+                            );
+                            if (result.ok) setProjectInput("");
+                          }}
+                          className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-100"
+                        >
+                          Add
+                        </button>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setActiveProjectId(null)}
+                          className={`rounded-full border px-2.5 py-1 text-[11px] transition ${activeProjectId === null ? "border-zinc-200 bg-zinc-100 text-zinc-950" : "border-zinc-700 text-zinc-400 hover:text-white"}`}
+                        >
+                          All projects
+                        </button>
+                        {projects.map((project) => {
+                          const count = items.filter(
+                            (item) => item.projectId === project._id,
+                          ).length;
+                          return (
+                            <div
+                              key={project._id}
+                              className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${activeProjectId === project._id ? "border-zinc-300 bg-zinc-800" : "border-zinc-800 bg-zinc-900/70"}`}
+                            >
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setActiveProjectId(
+                                    activeProjectId === project._id
+                                      ? null
+                                      : project._id,
+                                  )
+                                }
+                                className="px-1 text-[11px] text-zinc-200"
+                                title={`Show tasks in ${project.name}`}
+                              >
+                                {project.name}{" "}
+                                <span className="text-zinc-500">({count})</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setRenamingProjectId(project._id);
+                                  setRenamingProjectName(project.name);
+                                  setProjectError("");
+                                }}
+                                aria-label={`Rename ${project.name}`}
+                                title="Rename project"
+                                className="rounded p-1 text-zinc-500 hover:text-white"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPendingProjectDeleteId(project._id);
+                                  setProjectError("");
+                                }}
+                                aria-label={`Delete ${project.name}`}
+                                title="Delete project"
+                                className="rounded px-1 text-xs text-zinc-500 hover:text-red-400"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      {activeProjectId && (
+                        <div className="mt-3 border-t border-zinc-800 pt-3">
+                          <div className="mb-2 flex items-center justify-between text-xs text-zinc-400">
+                            <span>
+                              Tasks in{" "}
+                              {projects.find(
+                                (project) => project._id === activeProjectId,
+                              )?.name ?? "project"}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setActiveProjectId(null)}
+                              className="hover:text-white"
+                            >
+                              Clear filter
+                            </button>
+                          </div>
+                          <div className="max-h-48 space-y-1 overflow-y-auto">
+                            {items.filter(
+                              (item) => item.projectId === activeProjectId,
+                            ).length === 0 ? (
+                              <p className="text-xs text-zinc-500">
+                                No tasks assigned yet. Open a task's details to
+                                assign it.
+                              </p>
+                            ) : (
+                              items
+                                .filter(
+                                  (item) => item.projectId === activeProjectId,
+                                )
+                                .map((item) => (
+                                  <button
+                                    key={item._id}
+                                    type="button"
+                                    onClick={() => openTaskDetails(item)}
+                                    className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs text-zinc-300 hover:bg-zinc-900"
+                                  >
+                                    <span
+                                      className={`truncate ${item.completed ? "text-zinc-500 line-through" : ""}`}
+                                    >
+                                      {item.title}
+                                    </span>
+                                    <span className="shrink-0 text-[10px] text-zinc-500">
+                                      {item.status}
+                                    </span>
+                                  </button>
+                                ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              }
+              contextControls={
+                <>
+                  <Card className="border-zinc-700/70 bg-gradient-to-br from-[#222426] to-[#191a1c] shadow-lg">
+                    <CardHeader className="px-4 pb-2 pt-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-xs font-medium text-zinc-300">
+                          Contexts
+                        </CardTitle>
+
+                        {activeContext && (
+                          <button
+                            onClick={() => setActiveContext(null)}
+                            className="text-[10px] text-zinc-500 transition hover:text-zinc-200"
+                          >
+                            Clear filter
+                          </button>
+                        )}
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="px-4 pb-3 pt-0">
+                      <div className="flex flex-wrap gap-1">
+                        <button
+                          onClick={() => setActiveContext(null)}
+                          className={`rounded-full border px-2 py-0.5 text-[9px] transition ${
+                            activeContext === null
+                              ? "border-zinc-200 bg-zinc-100 text-zinc-950"
+                              : "border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                          }`}
+                        >
+                          All
+                        </button>
+
+                        {allContexts.map((context) => (
+                          <button
+                            key={context}
+                            onClick={() => setActiveContext(context)}
+                            className={`rounded-full border px-2 py-0.5 text-[9px] transition ${
+                              activeContext === context
+                                ? "border-zinc-200 bg-zinc-100 text-zinc-950"
+                                : "border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
+                            }`}
+                          >
+                            {context}
+                          </button>
+                        ))}
+                      </div>
+
+                      {activeContext && (
+                        <p className="mt-2 text-[9px] text-zinc-500">
+                          Showing tasks in {activeContext}.
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </>
+              }
               reorderDayTasks={async (taskIds, dayStart, dayEnd) => {
                 await runAction(
                   `calendar-reorder:${dayStart}`,
@@ -1582,236 +1812,13 @@ export default function InboxCard() {
               }}
             />
           </div>
-
-          {/* ==================== PROJECTS + CONTEXTS ==================== */}
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {/* PROJECTS */}
-            <Card className="border-zinc-800/80 bg-zinc-950/60 shadow-lg">
-              <CardHeader className="px-4 pb-2 pt-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-medium text-zinc-300">
-                    Projects
-                  </CardTitle>
-
-                  <span className="text-[10px] text-zinc-500">
-                    {projects.length} active
-                  </span>
-                </div>
-              </CardHeader>
-
-              <CardContent className="px-4 pb-3 pt-0">
-                <div className="flex gap-2">
-                  <input
-                    value={projectInput}
-                    onChange={(e) => setProjectInput(e.target.value)}
-                    onKeyDown={async (e) => {
-                      if (e.key === "Enter" && projectInput.trim()) {
-                        const result = await runAction(
-                          "project-create",
-                          "Project created",
-                          "Could not create project.",
-                          () => createProject({ name: projectInput.trim() }),
-                        );
-                        if (result.ok) setProjectInput("");
-                      }
-                    }}
-                    placeholder="Create a project..."
-                    className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-zinc-900/80 px-2.5 py-1.5 text-[11px] text-zinc-200 outline-none transition placeholder:text-zinc-500 focus:border-zinc-700"
-                  />
-
-                  <button
-                    onClick={async () => {
-                      if (!projectInput.trim()) return;
-
-                      const result = await runAction(
-                        "project-create",
-                        "Project created",
-                        "Could not create project.",
-                        () => createProject({ name: projectInput.trim() }),
-                      );
-                      if (result.ok) setProjectInput("");
-                    }}
-                    className="rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[11px] font-medium text-zinc-300 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-100"
-                  >
-                    Add
-                  </button>
-                </div>
-
-                <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setActiveProjectId(null)}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${activeProjectId === null ? "border-zinc-200 bg-zinc-100 text-zinc-950" : "border-zinc-700 text-zinc-400 hover:text-white"}`}
-                  >
-                    All projects
-                  </button>
-                  {projects.map((project) => {
-                    const count = items.filter(
-                      (item) => item.projectId === project._id,
-                    ).length;
-                    return (
-                      <div
-                        key={project._id}
-                        className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 ${activeProjectId === project._id ? "border-zinc-300 bg-zinc-800" : "border-zinc-800 bg-zinc-900/70"}`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveProjectId(
-                              activeProjectId === project._id
-                                ? null
-                                : project._id,
-                            )
-                          }
-                          className="px-1 text-[11px] text-zinc-200"
-                          title={`Show tasks in ${project.name}`}
-                        >
-                          {project.name}{" "}
-                          <span className="text-zinc-500">({count})</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setRenamingProjectId(project._id);
-                            setRenamingProjectName(project.name);
-                            setProjectError("");
-                          }}
-                          aria-label={`Rename ${project.name}`}
-                          title="Rename project"
-                          className="rounded p-1 text-zinc-500 hover:text-white"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPendingProjectDeleteId(project._id);
-                            setProjectError("");
-                          }}
-                          aria-label={`Delete ${project.name}`}
-                          title="Delete project"
-                          className="rounded px-1 text-xs text-zinc-500 hover:text-red-400"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-                {activeProjectId && (
-                  <div className="mt-3 border-t border-zinc-800 pt-3">
-                    <div className="mb-2 flex items-center justify-between text-xs text-zinc-400">
-                      <span>
-                        Tasks in{" "}
-                        {projects.find(
-                          (project) => project._id === activeProjectId,
-                        )?.name ?? "project"}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setActiveProjectId(null)}
-                        className="hover:text-white"
-                      >
-                        Clear filter
-                      </button>
-                    </div>
-                    <div className="max-h-48 space-y-1 overflow-y-auto">
-                      {items.filter(
-                        (item) => item.projectId === activeProjectId,
-                      ).length === 0 ? (
-                        <p className="text-xs text-zinc-500">
-                          No tasks assigned yet. Open a task's details to assign
-                          it.
-                        </p>
-                      ) : (
-                        items
-                          .filter((item) => item.projectId === activeProjectId)
-                          .map((item) => (
-                            <button
-                              key={item._id}
-                              type="button"
-                              onClick={() => openTaskDetails(item)}
-                              className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs text-zinc-300 hover:bg-zinc-900"
-                            >
-                              <span
-                                className={`truncate ${item.completed ? "text-zinc-500 line-through" : ""}`}
-                              >
-                                {item.title}
-                              </span>
-                              <span className="shrink-0 text-[10px] text-zinc-500">
-                                {item.status}
-                              </span>
-                            </button>
-                          ))
-                      )}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* CONTEXTS */}
-            <Card className="border-zinc-800/80 bg-zinc-950/60 shadow-lg">
-              <CardHeader className="px-4 pb-2 pt-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xs font-medium text-zinc-300">
-                    Contexts
-                  </CardTitle>
-
-                  {activeContext && (
-                    <button
-                      onClick={() => setActiveContext(null)}
-                      className="text-[10px] text-zinc-500 transition hover:text-zinc-200"
-                    >
-                      Clear filter
-                    </button>
-                  )}
-                </div>
-              </CardHeader>
-
-              <CardContent className="px-4 pb-3 pt-0">
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    onClick={() => setActiveContext(null)}
-                    className={`rounded-full border px-2 py-0.5 text-[9px] transition ${
-                      activeContext === null
-                        ? "border-zinc-200 bg-zinc-100 text-zinc-950"
-                        : "border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
-                    }`}
-                  >
-                    All
-                  </button>
-
-                  {allContexts.map((context) => (
-                    <button
-                      key={context}
-                      onClick={() => setActiveContext(context)}
-                      className={`rounded-full border px-2 py-0.5 text-[9px] transition ${
-                        activeContext === context
-                          ? "border-zinc-200 bg-zinc-100 text-zinc-950"
-                          : "border-zinc-800 bg-zinc-900/70 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300"
-                      }`}
-                    >
-                      {context}
-                    </button>
-                  ))}
-                </div>
-
-                {activeContext && (
-                  <p className="mt-2 text-[9px] text-zinc-500">
-                    Showing tasks in {activeContext}.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
         </div>
       </div>
 
       {/* ==================== TASK DETAILS MODAL ==================== */}
       {selectedTask && (
         <div className="fixed left-1/2 top-1/2 z-[70] w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-4">
-          <Card className="flex max-h-[90vh] flex-col overflow-hidden rounded-2xl border-zinc-700/80 bg-zinc-950 shadow-[0_28px_90px_rgba(0,0,0,0.65)]">
+          <Card className="flex max-h-[90vh] flex-col overflow-hidden rounded-3xl border-zinc-600/60 bg-zinc-950 shadow-[0_35px_110px_rgba(0,0,0,0.75)]">
             <CardHeader className="relative border-b border-zinc-800 bg-gradient-to-r from-zinc-900 to-zinc-950 px-6 py-5">
               <CardTitle className="text-lg font-semibold tracking-tight">
                 Task Details
@@ -1831,7 +1838,7 @@ export default function InboxCard() {
               </button>
             </CardHeader>
 
-            <CardContent className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5 sm:p-6">
+            <CardContent className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6 sm:p-8">
               <div className="border-b border-zinc-800/80 pb-2">
                 <h3 className="text-xs font-semibold uppercase tracking-[0.16em] text-zinc-300">
                   General
