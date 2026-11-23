@@ -831,69 +831,71 @@ export default function WeeklyCalendar({
           {format(weekStart, "d MMM")} – {format(weekDays[6], "d MMM yyyy")}
         </div>
 
-        <div
-          ref={organizerRef}
-          className="relative z-30 flex flex-wrap items-center gap-2"
-        >
-          {projectControls && (
-            <button
-              type="button"
-              aria-expanded={openOrganizer === "projects"}
-              aria-controls="mogtd-projects-panel"
-              onClick={() =>
-                setOpenOrganizer((current) =>
-                  current === "projects" ? null : "projects",
-                )
-              }
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${openOrganizer === "projects" ? "border-zinc-400 bg-zinc-700 text-white" : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500 hover:text-white"}`}
-            >
-              <FolderKanban className="h-3.5 w-3.5" /> Projects{" "}
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {contextControls && (
-            <button
-              type="button"
-              aria-expanded={openOrganizer === "contexts"}
-              aria-controls="mogtd-contexts-panel"
-              onClick={() =>
-                setOpenOrganizer((current) =>
-                  current === "contexts" ? null : "contexts",
-                )
-              }
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${openOrganizer === "contexts" ? "border-zinc-400 bg-zinc-700 text-white" : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500 hover:text-white"}`}
-            >
-              <Tags className="h-3.5 w-3.5" /> Contexts{" "}
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {openOrganizer === "projects" && projectControls && (
-            <div
-              id="mogtd-projects-panel"
-              className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,560px)] w-[min(90vw,440px)] overflow-y-auto rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
-            >
-              {projectControls}
-            </div>
-          )}
-          {openOrganizer === "contexts" && contextControls && (
-            <div
-              id="mogtd-contexts-panel"
-              className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,440px)] w-[min(90vw,360px)] overflow-y-auto rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
-            >
-              {contextControls}
-            </div>
-          )}
-        </div>
+        <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+          <div
+            ref={organizerRef}
+            className="relative z-30 flex flex-wrap items-center gap-2"
+          >
+            {projectControls && (
+              <button
+                type="button"
+                aria-expanded={openOrganizer === "projects"}
+                aria-controls="mogtd-projects-panel"
+                onClick={() =>
+                  setOpenOrganizer((current) =>
+                    current === "projects" ? null : "projects",
+                  )
+                }
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${openOrganizer === "projects" ? "border-zinc-400 bg-zinc-700 text-white" : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500 hover:text-white"}`}
+              >
+                <FolderKanban className="h-3.5 w-3.5" /> Projects{" "}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {contextControls && (
+              <button
+                type="button"
+                aria-expanded={openOrganizer === "contexts"}
+                aria-controls="mogtd-contexts-panel"
+                onClick={() =>
+                  setOpenOrganizer((current) =>
+                    current === "contexts" ? null : "contexts",
+                  )
+                }
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition ${openOrganizer === "contexts" ? "border-zinc-400 bg-zinc-700 text-white" : "border-zinc-700 bg-zinc-950 text-zinc-300 hover:border-zinc-500 hover:text-white"}`}
+              >
+                <Tags className="h-3.5 w-3.5" /> Contexts{" "}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {openOrganizer === "projects" && projectControls && (
+              <div
+                id="mogtd-projects-panel"
+                className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,560px)] w-[min(90vw,440px)] overflow-y-auto rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
+              >
+                {projectControls}
+              </div>
+            )}
+            {openOrganizer === "contexts" && contextControls && (
+              <div
+                id="mogtd-contexts-panel"
+                className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,440px)] w-[min(90vw,360px)] overflow-y-auto rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
+              >
+                {contextControls}
+              </div>
+            )}
+          </div>
 
-        <div className="relative w-full sm:w-56">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
+          <div className="relative w-full sm:w-56 sm:shrink-0">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-600" />
 
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search tasks..."
-            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 py-2 pl-8 pr-3 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-zinc-600"
-          />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search tasks..."
+              className="w-full rounded-lg border border-zinc-800 bg-zinc-950 py-2 pl-8 pr-3 text-xs text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-zinc-600"
+            />
+          </div>
         </div>
       </div>
 
