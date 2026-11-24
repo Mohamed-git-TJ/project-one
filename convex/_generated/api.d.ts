@@ -9,6 +9,7 @@
  */
 
 import type * as projects from "../projects.js";
+import type * as reminders from "../reminders.js";
 import type * as tasks from "../tasks.js";
 
 import type {
@@ -19,6 +20,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   projects: typeof projects;
+  reminders: typeof reminders;
   tasks: typeof tasks;
 }>;
 
