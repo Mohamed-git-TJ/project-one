@@ -71,6 +71,7 @@ type Entry = {
   title: string;
   reminder: boolean;
   done: boolean;
+  priority?: string;
 };
 
 // ==================== HELPERS ====================
@@ -170,6 +171,11 @@ function Chip({
         title={entry.title}
         className="min-w-0 flex-1 truncate py-1 text-left"
       >
+        {!entry.reminder && (
+          <span
+            className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${entry.priority === "high" ? "bg-red-400" : entry.priority === "low" ? "bg-zinc-500" : "bg-amber-400"}`}
+          />
+        )}
         {entry.title}
       </button>
     </div>
@@ -205,6 +211,34 @@ function DayCell({
 
 // ==================== MONTHLY CALENDAR ====================
 
+function PanelHandle({
+  id,
+  title,
+  disabled,
+}: {
+  id: string;
+  title: string;
+  disabled: boolean;
+}) {
+  const { setNodeRef, attributes, listeners, isDragging } = useDraggable({
+    id: `panel:${id}`,
+    disabled,
+  });
+  return (
+    <button
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      type="button"
+      disabled={disabled}
+      aria-label={`Drag ${title}`}
+      style={{ touchAction: "none", opacity: isDragging ? 0.3 : 1 }}
+      className="shrink-0 cursor-grab px-2 py-2 text-zinc-400"
+    >
+      ⋮⋮
+    </button>
+  );
+}
 function MonthlyCalendar() {
   // DRAG AND DROP
 
@@ -217,6 +251,25 @@ function MonthlyCalendar() {
   );
 
   const [dragTitle, setDragTitle] = useState("");
+  const [quickAdd, setQuickAdd] = useState<string | null>(null);
+  const [agendaDays, setAgendaDays] = useState(7);
+  const [undo, setUndo] = useState<{
+    action: () => Promise<unknown>;
+    date: string;
+  } | null>(null);
+  const [postpone, setPostpone] = useState<Reminder | null>(null);
+  const [postponeDate, setPostponeDate] = useState("");
+  const dragTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function clearDragTimer() {
+    if (dragTimer.current) clearTimeout(dragTimer.current);
+    dragTimer.current = null;
+  }
+  useEffect(
+    () => () => {
+      if (dragTimer.current) clearTimeout(dragTimer.current);
+    },
+    [],
+  );
 
   // TASK MODALS
 
@@ -441,6 +494,7 @@ function MonthlyCalendar() {
     setBusy(true);
     setError("");
     setNotice("");
+    setUndo(null);
 
     try {
       await action();
@@ -500,6 +554,7 @@ function MonthlyCalendar() {
   // ==================== DRAG AND DROP ====================
 
   async function drop({ active, over }: DragEndEvent) {
+    clearDragTimer();
     setDragTitle("");
 
     if (!over || lock.current) {
@@ -512,9 +567,10 @@ function MonthlyCalendar() {
       return;
     }
 
-    const reminder = reminders?.find((reminder) => reminder._id === active.id);
+    const sourceId = String(active.id).replace(/^panel:/, "");
+    const reminder = reminders?.find((reminder) => reminder._id === sourceId);
 
-    const task = tasks?.find((task) => task._id === active.id);
+    const task = tasks?.find((task) => task._id === sourceId);
 
     // MOVE REMINDER
 
@@ -530,6 +586,10 @@ function MonthlyCalendar() {
       );
 
       if (success) {
+        setUndo({
+          action: () => moveReminder({ id: reminder._id, date: reminder.date }),
+          date: reminder.date,
+        });
         select(date);
       }
 
@@ -564,6 +624,11 @@ function MonthlyCalendar() {
       );
 
       if (success) {
+        setUndo({
+          action: () =>
+            moveTask({ id: task._id, status: "scheduled", date: task.date }),
+          date: key(old),
+        });
         select(date);
       }
     }
@@ -600,12 +665,30 @@ function MonthlyCalendar() {
       collisionDetection={pointerWithin}
       onDragStart={({ active }) => {
         setDragTitle(
-          tasks?.find((task) => task._id === active.id)?.title ??
-            reminders?.find((reminder) => reminder._id === active.id)?.title ??
+          tasks?.find(
+            (task) => task._id === String(active.id).replace(/^panel:/, ""),
+          )?.title ??
+            reminders?.find(
+              (reminder) =>
+                reminder._id === String(active.id).replace(/^panel:/, ""),
+            )?.title ??
             "",
         );
       }}
-      onDragCancel={() => setDragTitle("")}
+      onDragOver={({ over }) => {
+        clearDragTimer();
+        const direction =
+          over?.id === "month-prev" ? -1 : over?.id === "month-next" ? 1 : 0;
+        if (direction)
+          dragTimer.current = setTimeout(
+            () => setMonth((m) => addMonths(m, direction)),
+            650,
+          );
+      }}
+      onDragCancel={() => {
+        clearDragTimer();
+        setDragTitle("");
+      }}
       onDragEnd={drop}
     >
       <main className="min-h-svh min-w-0 bg-[#111214] p-4 text-zinc-100 sm:p-7">
@@ -649,6 +732,19 @@ function MonthlyCalendar() {
           {notice && (
             <p role="status" className="text-sm text-zinc-300">
               {notice}
+              {undo && (
+                <button
+                  className="ml-3 underline"
+                  disabled={busy}
+                  onClick={async () => {
+                    const previous = undo;
+                    if (await run(previous.action, "Move undone"))
+                      select(previous.date);
+                  }}
+                >
+                  Undo
+                </button>
+              )}
             </p>
           )}
 
@@ -725,6 +821,22 @@ function MonthlyCalendar() {
               </div>
             </div>
 
+            {dragTitle && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <DayCell
+                  date="month-prev"
+                  className="rounded border border-dashed p-2 text-center text-xs"
+                >
+                  Hold here: previous month
+                </DayCell>
+                <DayCell
+                  date="month-next"
+                  className="rounded border border-dashed p-2 text-center text-xs"
+                >
+                  Hold here: next month
+                </DayCell>
+              </div>
+            )}
             {/* CALENDAR GRID */}
 
             <div className="mt-4 overflow-x-auto">
@@ -776,6 +888,7 @@ function MonthlyCalendar() {
                         title: task.title,
                         reminder: false,
                         done: !!task.completed,
+                        priority: task.priority,
                       })),
                     ];
 
@@ -807,10 +920,10 @@ function MonthlyCalendar() {
 
                           <button
                             type="button"
-                            title="Add scheduled task"
-                            aria-label={`Add task on ${date}`}
+                            title="Add task or reminder"
+                            aria-label={`Add entry on ${date}`}
                             disabled={busy || tasks === undefined}
-                            onClick={() => openNewTask(date)}
+                            onClick={() => setQuickAdd(date)}
                             className="rounded-md p-1 text-zinc-500 opacity-60 hover:bg-zinc-700 hover:text-white group-hover:opacity-100"
                           >
                             <Plus size={13} />
@@ -934,6 +1047,11 @@ function MonthlyCalendar() {
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
+                    <PanelHandle
+                      id={reminder._id}
+                      title={reminder.title}
+                      disabled={busy}
+                    />
                     <div className="min-w-0 flex-1">
                       <button
                         type="button"
@@ -961,6 +1079,19 @@ function MonthlyCalendar() {
                     {/* REMINDER ACTIONS */}
 
                     <div className="flex flex-wrap items-center gap-1">
+                      {!reminder.dismissed && (
+                        <button
+                          className={button}
+                          disabled={busy}
+                          onClick={() => {
+                            setError("");
+                            setPostpone(reminder);
+                            setPostponeDate(key(addDays(localDate(today), 1)));
+                          }}
+                        >
+                          Postpone
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={button}
@@ -1044,6 +1175,11 @@ function MonthlyCalendar() {
                   key={task._id}
                   className="flex items-start gap-3 rounded-lg border border-zinc-700/60 bg-[#222426] p-3"
                 >
+                  <PanelHandle
+                    id={task._id}
+                    title={task.title}
+                    disabled={busy}
+                  />
                   <button
                     type="button"
                     aria-label="Open task details"
@@ -1135,6 +1271,17 @@ function MonthlyCalendar() {
                   </button>
 
                   <button
+                    className={button}
+                    disabled={busy}
+                    onClick={() => {
+                      setError("");
+                      setPostpone(reminder);
+                      setPostponeDate(key(addDays(localDate(today), 1)));
+                    }}
+                  >
+                    Postpone
+                  </button>
+                  <button
                     type="button"
                     className={button}
                     disabled={busy}
@@ -1166,6 +1313,183 @@ function MonthlyCalendar() {
             </section>
           </div>
 
+          <section className="rounded-2xl border border-zinc-700/60 bg-[#191a1c] p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold">Upcoming agenda</h2>
+              <select
+                aria-label="Agenda range"
+                className={button}
+                value={agendaDays}
+                onChange={(e) => setAgendaDays(Number(e.target.value))}
+              >
+                {[7, 14, 30].map((n) => (
+                  <option key={n} value={n}>
+                    Next {n} days
+                  </option>
+                ))}
+              </select>
+            </div>
+            {Array.from({ length: agendaDays }, (_, i) =>
+              key(addDays(localDate(today), i)),
+            ).map((date) => {
+              const group = grouped.get(date);
+              const pending = group?.tasks.filter((t) => !t.completed) ?? [];
+              const alerts = group?.reminders.filter((r) => !r.dismissed) ?? [];
+              if (!pending.length && !alerts.length) return null;
+              return (
+                <div
+                  key={date}
+                  className="border-t border-zinc-800 pt-2 space-y-1"
+                >
+                  <h3 className="text-xs text-zinc-400">
+                    {format(localDate(date), "EEE, d MMM")}
+                  </h3>
+                  {pending.map((t) => (
+                    <button
+                      key={t._id}
+                      className="block text-left text-sm hover:underline"
+                      onClick={() => setTaskId(t._id)}
+                    >
+                      {t.title}
+                    </button>
+                  ))}
+                  {alerts.map((r) => (
+                    <button
+                      key={r._id}
+                      className="block text-left text-sm text-amber-200 hover:underline"
+                      onClick={() => open(r.date, r)}
+                    >
+                      {r.time ? `${r.time} ` : ""}
+                      {r.title}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+            {!Array.from({ length: agendaDays }, (_, i) =>
+              grouped.get(key(addDays(localDate(today), i))),
+            ).some(
+              (g) =>
+                g?.tasks.some((t) => !t.completed) ||
+                g?.reminders.some((r) => !r.dismissed),
+            ) && <p className="text-sm text-zinc-400">Nothing upcoming.</p>}
+          </section>
+          {quickAdd && (
+            <div
+              className="fixed inset-0 z-[75] grid place-items-center bg-black/70 p-4"
+              onClick={() => setQuickAdd(null)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Add entry"
+                className="w-full max-w-xs space-y-3 rounded-xl border border-zinc-700 bg-[#191a1c] p-5"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2>Add to {format(localDate(quickAdd), "d MMMM")}</h2>
+                <button
+                  className={`${button} w-full`}
+                  onClick={() => {
+                    openNewTask(quickAdd);
+                    setQuickAdd(null);
+                  }}
+                >
+                  Create task
+                </button>
+                <button
+                  className={`${button} w-full text-amber-200`}
+                  onClick={() => {
+                    open(quickAdd);
+                    setQuickAdd(null);
+                  }}
+                >
+                  Create reminder
+                </button>
+                <button
+                  className={`${button} w-full`}
+                  onClick={() => setQuickAdd(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+          {postpone && (
+            <div className="fixed inset-0 z-[75] grid place-items-center bg-black/70 p-4">
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Postpone reminder"
+                className="w-full max-w-sm space-y-3 rounded-xl border border-zinc-700 bg-[#191a1c] p-5"
+              >
+                <h2>Postpone {postpone.title}</h2>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    ["Tomorrow", key(addDays(localDate(today), 1))],
+                    ["In 7 days", key(addDays(localDate(today), 7))],
+                    ["In 1 month", key(addMonths(localDate(today), 1))],
+                  ].map(([label, date]) => (
+                    <button
+                      key={label}
+                      className={button}
+                      onClick={() => setPostponeDate(date)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="date"
+                  aria-label="New reminder date"
+                  className={field}
+                  min={key(addDays(localDate(today), 1))}
+                  value={postponeDate}
+                  onChange={(e) => setPostponeDate(e.target.value)}
+                />
+                {error && (
+                  <p role="alert" className="text-red-400 text-sm">
+                    {error}
+                  </p>
+                )}
+                <button
+                  className={primary}
+                  disabled={busy || postponeDate <= today}
+                  onClick={async () => {
+                    const previous = postpone;
+                    if (
+                      await run(
+                        () =>
+                          moveReminder({
+                            id: previous._id,
+                            date: postponeDate,
+                          }),
+                        "Reminder postponed",
+                      )
+                    ) {
+                      setUndo({
+                        action: () =>
+                          moveReminder({
+                            id: previous._id,
+                            date: previous.date,
+                          }),
+                        date: previous.date,
+                      });
+                      setPostpone(null);
+                    }
+                  }}
+                >
+                  Postpone
+                </button>{" "}
+                <button
+                  className={button}
+                  disabled={busy}
+                  onClick={() => setPostpone(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           {/* ==================== REMINDER MODAL ==================== */}
 
           <dialog

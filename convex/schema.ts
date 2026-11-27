@@ -11,6 +11,7 @@ export default defineSchema({
     notes: v.optional(v.string()),
     priority: v.optional(v.string()),
     contexts: v.optional(v.array(v.string())),
+    recurrenceGenerated: v.optional(v.boolean()),
     recurring: v.optional(v.boolean()),
     recurrenceType: v.optional(v.string()),
     recurrenceInterval: v.optional(v.number()),

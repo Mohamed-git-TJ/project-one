@@ -20,6 +20,14 @@ const recurrenceTypeValidator = v.union(
   v.literal("yearly"),
 );
 
+function validDateKey(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(value + "T00:00:00Z");
+  return (
+    Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+  );
+}
+
 function calculateNextOccurrence(
   currentDate: string,
   type: string,
@@ -32,13 +40,13 @@ function calculateNextOccurrence(
     throw new Error("Invalid task date");
   }
 
-  if (!Number.isInteger(interval) || interval < 1) {
+  if (!Number.isSafeInteger(interval) || interval < 1) {
     throw new Error("Recurrence interval must be a positive integer");
   }
 
   switch (type) {
     case "daily":
-      next.setDate(next.getDate() + interval);
+      next.setUTCDate(next.getUTCDate() + interval);
       break;
 
     case "weekly": {
@@ -53,32 +61,21 @@ function calculateNextOccurrence(
         "friday",
         "saturday",
       ];
-
       const selected = new Set(
         recurrenceDays?.length ? recurrenceDays : [weekdays[next.getUTCDay()]],
       );
-
       const currentDay = next.getUTCDay();
       const mondayOffset = (currentDay + 6) % 7;
-
       const weekStart = new Date(next);
-
       weekStart.setUTCDate(weekStart.getUTCDate() - mondayOffset);
-
       let found = false;
-
-      // Search the rest of this week, then eligible weeks
-      // at the requested interval.
+      // Search the rest of this week, then eligible weeks at the requested interval.
       for (let week = 0; week < 5200 && !found; week += interval) {
         const start = new Date(weekStart);
-
         start.setUTCDate(start.getUTCDate() + week * 7);
-
         for (let day = 0; day < 7; day++) {
           const candidate = new Date(start);
-
           candidate.setUTCDate(candidate.getUTCDate() + day);
-
           if (
             candidate.getTime() > next.getTime() &&
             selected.has(weekdays[candidate.getUTCDay()])
@@ -89,36 +86,32 @@ function calculateNextOccurrence(
           }
         }
       }
-
-      if (!found) {
-        throw new Error("Unable to calculate next weekly occurrence");
-      }
-
+      if (!found) throw new Error("Unable to calculate next weekly occurrence");
       break;
     }
 
     case "monthly": {
-      // Clamp dates such as Jan 31 -> Feb 28/29
-      // instead of rolling into March.
-      const originalDay = next.getDate();
-
-      next.setDate(1);
-      next.setMonth(next.getMonth() + interval);
-
+      // Clamp dates such as Jan 31 -> Feb 28/29 instead of rolling into March.
+      const originalDay = next.getUTCDate();
+      next.setUTCDate(1);
+      next.setUTCMonth(next.getUTCMonth() + interval);
       const lastDay = new Date(
-        next.getFullYear(),
-        next.getMonth() + 1,
-        0,
-      ).getDate();
-
-      next.setDate(Math.min(originalDay, lastDay));
-
+        Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0),
+      ).getUTCDate();
+      next.setUTCDate(Math.min(originalDay, lastDay));
       break;
     }
 
-    case "yearly":
-      next.setFullYear(next.getFullYear() + interval);
+    case "yearly": {
+      const day = next.getUTCDate();
+      next.setUTCDate(1);
+      next.setUTCFullYear(next.getUTCFullYear() + interval);
+      const lastDay = new Date(
+        Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0),
+      ).getUTCDate();
+      next.setUTCDate(Math.min(day, lastDay));
       break;
+    }
 
     default:
       throw new Error("Unsupported recurrence type");
@@ -127,12 +120,10 @@ function calculateNextOccurrence(
   return next.toISOString();
 }
 
-// ==================== GET TASKS ====================
-
+// GET TASKS
 export const getTasks = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-
     if (!identity) return [];
 
     return await ctx.db
@@ -142,8 +133,7 @@ export const getTasks = query({
   },
 });
 
-// ==================== CREATE TASK ====================
-
+// CREATE TASK
 export const createTask = mutation({
   args: {
     title: v.string(),
@@ -151,13 +141,9 @@ export const createTask = mutation({
     contexts: v.optional(v.array(v.string())),
     date: v.optional(v.string()),
   },
-
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    if (!identity) throw new Error("Not authenticated");
 
     const title = args.title.trim();
 
@@ -168,10 +154,8 @@ export const createTask = mutation({
     if (
       args.date !== undefined &&
       !Number.isFinite(new Date(args.date).getTime())
-    ) {
+    )
       throw new Error("Invalid task date");
-    }
-
     return await ctx.db.insert("tasks", {
       userId: identity.subject,
       title,
@@ -184,8 +168,7 @@ export const createTask = mutation({
   },
 });
 
-// ==================== UPDATE TASK ====================
-
+// UPDATE TASK
 export const updateTask = mutation({
   args: {
     id: v.id("tasks"),
@@ -193,7 +176,6 @@ export const updateTask = mutation({
     date: v.optional(v.string()),
     projectId: v.optional(v.id("projects")),
   },
-
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
 
@@ -244,15 +226,12 @@ export const updateTask = mutation({
         ...patch,
         projectId: args.projectId,
       });
-
       return;
     }
 
     await ctx.db.patch(args.id, patch);
   },
 });
-
-// ==================== EDIT TASK TITLE ====================
 
 export const editTask = mutation({
   args: {
@@ -288,8 +267,6 @@ export const editTask = mutation({
     });
   },
 });
-
-// ==================== UPDATE TASK DETAILS ====================
 
 export const updateTaskDetails = mutation({
   args: {
@@ -331,8 +308,6 @@ export const updateTaskDetails = mutation({
       throw new Error("Task title cannot be empty");
     }
 
-    // VALIDATE PROJECT
-
     if (args.projectId) {
       const project = await ctx.db.get(args.projectId);
 
@@ -345,36 +320,28 @@ export const updateTaskDetails = mutation({
       }
     }
 
-    // VALIDATE RECURRENCE INTERVAL
-
     if (
       args.recurrenceInterval !== undefined &&
-      (!Number.isInteger(args.recurrenceInterval) ||
+      (!Number.isSafeInteger(args.recurrenceInterval) ||
         args.recurrenceInterval < 1)
     ) {
       throw new Error("Recurrence interval must be a positive integer");
     }
 
-    // VALIDATE RECURRENCE COUNT
-
     if (
       args.recurrenceCount !== undefined &&
-      (!Number.isInteger(args.recurrenceCount) || args.recurrenceCount < 0)
+      (!Number.isSafeInteger(args.recurrenceCount) || args.recurrenceCount < 0)
     ) {
       throw new Error("Recurrence count must be a nonnegative integer");
     }
 
-    // VALIDATE RECURRENCE END DATE
-
     if (
       args.recurrenceEndDate !== undefined &&
       args.recurrenceEndDate !== "" &&
-      !/^\d{4}-\d{2}-\d{2}$/.test(args.recurrenceEndDate)
+      !validDateKey(args.recurrenceEndDate)
     ) {
       throw new Error("Invalid recurrence end date");
     }
-
-    // VALIDATE RECURRENCE WEEKDAYS
 
     const validWeekdays = new Set([
       "monday",
@@ -385,7 +352,6 @@ export const updateTaskDetails = mutation({
       "saturday",
       "sunday",
     ]);
-
     if (
       args.recurrenceDays?.some((day) => !validWeekdays.has(day)) ||
       (args.recurrenceDays &&
@@ -393,7 +359,6 @@ export const updateTaskDetails = mutation({
     ) {
       throw new Error("Invalid or duplicate recurrence weekdays");
     }
-
     if (
       args.recurring &&
       args.recurrenceType === "weekly" &&
@@ -401,8 +366,6 @@ export const updateTaskDetails = mutation({
     ) {
       throw new Error("Select at least one recurrence weekday");
     }
-
-    // VALIDATE RECURRING TASK CONFIGURATION
 
     if (args.recurring) {
       if (!args.recurrenceType) {
@@ -414,26 +377,16 @@ export const updateTaskDetails = mutation({
       }
     }
 
-    // VALIDATE SCHEDULED DATE
-
     if (
       args.date !== undefined &&
       (task.status !== "scheduled" ||
         !Number.isFinite(new Date(args.date).getTime()))
-    ) {
+    )
       throw new Error("Invalid scheduled date");
-    }
-
-    // UPDATE TASK
-
     await ctx.db.patch(args.id, {
       ...(args.date !== undefined && args.date !== task.date
-        ? {
-            date: args.date,
-            order: undefined,
-          }
+        ? { date: args.date, order: undefined }
         : {}),
-
       title,
       notes: args.notes,
       priority: args.priority,
@@ -449,8 +402,7 @@ export const updateTaskDetails = mutation({
   },
 });
 
-// ==================== TOGGLE COMPLETE ====================
-
+// TOGGLE COMPLETE
 export const toggleComplete = mutation({
   args: {
     id: v.id("tasks"),
@@ -476,19 +428,20 @@ export const toggleComplete = mutation({
     const completing = !task.completed;
 
     // UNCOMPLETE TASK
-
     if (!completing) {
       await ctx.db.patch(args.id, {
         completed: false,
         completedAt: undefined,
+        ...(task.recurring && task.recurrenceGenerated === undefined
+          ? { recurrenceGenerated: true }
+          : {}),
       });
 
       return;
     }
 
     // NORMAL / NON-RECURRING TASK
-
-    if (!task.recurring || !task.recurrenceType) {
+    if (!task.recurring || !task.recurrenceType || task.recurrenceGenerated) {
       await ctx.db.patch(args.id, {
         completed: true,
         completedAt: Date.now(),
@@ -498,7 +451,6 @@ export const toggleComplete = mutation({
     }
 
     // CHECK REPEAT COUNT
-
     if (task.recurrenceCount !== undefined && task.recurrenceCount <= 0) {
       await ctx.db.patch(args.id, {
         completed: true,
@@ -509,7 +461,6 @@ export const toggleComplete = mutation({
     }
 
     // CALCULATE NEXT OCCURRENCE
-
     const nextDate = calculateNextOccurrence(
       task.date ?? new Date().toISOString(),
       task.recurrenceType,
@@ -518,7 +469,6 @@ export const toggleComplete = mutation({
     );
 
     // CHECK END DATE
-
     if (
       task.recurrenceEndDate &&
       new Date(nextDate) > new Date(`${task.recurrenceEndDate}T23:59:59.999Z`)
@@ -532,12 +482,10 @@ export const toggleComplete = mutation({
     }
 
     // CALCULATE REMAINING REPEATS
-
     const remainingRepeats =
       task.recurrenceCount !== undefined ? task.recurrenceCount - 1 : undefined;
 
     // CREATE NEXT OCCURRENCE
-
     await ctx.db.insert("tasks", {
       userId: task.userId,
       title: task.title,
@@ -558,15 +506,13 @@ export const toggleComplete = mutation({
     });
 
     // MARK CURRENT TASK AS COMPLETED
-
     await ctx.db.patch(args.id, {
+      recurrenceGenerated: true,
       completed: true,
       completedAt: Date.now(),
     });
   },
 });
-
-// ==================== REORDER DAY TASKS ====================
 
 export const reorderDayTasks = mutation({
   args: {
@@ -574,13 +520,9 @@ export const reorderDayTasks = mutation({
     dayStart: v.number(),
     dayEnd: v.number(),
   },
-
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
+    if (!identity) throw new Error("Not authenticated");
 
     if (new Set(args.taskIds).size !== args.taskIds.length) {
       throw new Error("Duplicate task IDs are not allowed");
@@ -589,10 +531,7 @@ export const reorderDayTasks = mutation({
     const tasks = await Promise.all(args.taskIds.map((id) => ctx.db.get(id)));
 
     for (const task of tasks) {
-      if (!task) {
-        throw new Error("Task not found");
-      }
-
+      if (!task) throw new Error("Task not found");
       if (task.userId !== identity.subject) {
         throw new Error("Unauthorized");
       }
@@ -609,21 +548,14 @@ export const reorderDayTasks = mutation({
     }
 
     await Promise.all(
-      args.taskIds.map((id, index) =>
-        ctx.db.patch(id, {
-          order: index,
-        }),
-      ),
+      args.taskIds.map((id, index) => ctx.db.patch(id, { order: index })),
     );
   },
 });
 
-// ==================== DELETE TASK ====================
-
+// DELETE TASK
 export const deleteTask = mutation({
-  args: {
-    id: v.id("tasks"),
-  },
+  args: { id: v.id("tasks") },
 
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -646,22 +578,17 @@ export const deleteTask = mutation({
   },
 });
 
-// ==================== REORDER TASKS IN LIST ====================
-
 export const reorderTasksInList = mutation({
   args: {
     taskIds: v.array(v.id("tasks")),
-
     listType: v.union(
       v.literal("inbox"),
       v.literal("incubator"),
       v.literal("today"),
     ),
-
     dayStart: v.optional(v.number()),
     dayEnd: v.optional(v.number()),
   },
-
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
 
@@ -715,11 +642,7 @@ export const reorderTasksInList = mutation({
     }
 
     await Promise.all(
-      args.taskIds.map((id, index) =>
-        ctx.db.patch(id, {
-          order: index,
-        }),
-      ),
+      args.taskIds.map((id, index) => ctx.db.patch(id, { order: index })),
     );
   },
 });
