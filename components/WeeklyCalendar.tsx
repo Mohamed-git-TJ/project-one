@@ -210,7 +210,7 @@ function CalendarDay({
         }}
         className={`mb-3 flex w-full items-center justify-between rounded-lg px-2 py-2 text-left transition ${
           isSelected
-            ? "bg-zinc-100 text-zinc-950"
+            ? "bg-zinc-700 text-zinc-100 ring-1 ring-inset ring-zinc-500"
             : "text-zinc-300 hover:bg-zinc-900 hover:text-zinc-100"
         }`}
         title="Open all tasks for this day"
@@ -223,10 +223,14 @@ function CalendarDay({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-zinc-500">{dayItems.length}</span>
+          <span
+            className={`text-[10px] ${isSelected ? "text-zinc-200" : "text-zinc-400"}`}
+          >
+            {dayItems.length}
+          </span>
 
           {isToday(day) && (
-            <span className="rounded-full border border-zinc-600 px-2 py-0.5 text-[10px] font-medium text-zinc-300">
+            <span className="rounded-full border border-zinc-500 bg-zinc-800 px-2 py-0.5 text-[10px] font-medium text-zinc-100">
               Today
             </span>
           )}
@@ -793,7 +797,7 @@ export default function WeeklyCalendar({
 
     setWeekStart(startOfWeek(today, { weekStartsOn: 1 }));
     setSelectedDate(today);
-    setExpandedDay(today);
+    setExpandedDay(null);
   };
 
   return (
