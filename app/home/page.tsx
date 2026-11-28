@@ -896,53 +896,35 @@ export default function InboxCard() {
         </TooltipProvider>
       )}
 
-      {type === "today" && item.date && (
-        <span className="hidden shrink-0 text-[11px] text-zinc-400 sm:block">
-          {new Date(item.date).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
-      )}
-
       <div className="flex shrink-0 items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setCompactEditingId(item._id);
-            setCompactEditingText(item.title);
-          }}
-          className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-          title="Rename task"
-          aria-label={`Rename ${item.title}`}
-        >
-          <Pencil className="h-3.5 w-3.5" />
-        </button>
-
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            openTaskDetails(item);
-          }}
-          className="rounded p-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-          title="Details"
-          aria-label={`Open details for ${item.title}`}
-        >
-          ⓘ
-        </button>
-
-        {type === "today" && (
+        {expanded !== type && (
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation();
-              moveItem(item._id, "inbox");
+              setCompactEditingId(item._id);
+              setCompactEditingText(item.title);
+            }}
+            className="rounded p-1 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+            title="Rename task"
+            aria-label={`Rename ${item.title}`}
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+        )}
+
+        {expanded !== type && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openTaskDetails(item);
             }}
             className="rounded p-1 text-xs text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
-            title="Move to Inbox"
+            title="Details"
+            aria-label={`Open details for ${item.title}`}
           >
-            ↩
+            ⓘ
           </button>
         )}
 
@@ -1166,7 +1148,7 @@ export default function InboxCard() {
             {/* ==================== TODAY ==================== */}
             <TodayDropZone isDragging={Boolean(activeItem)}>
               <Card
-                className={`border-zinc-500/75 bg-gradient-to-br from-[#282a2c] via-[#202123] to-[#191a1c] shadow-[0_12px_36px_rgba(0,0,0,0.3)] ring-1 ring-white/[0.045] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
+                className={`pt-0 border-zinc-500/75 bg-gradient-to-br from-[#282a2c] via-[#202123] to-[#191a1c] shadow-[0_12px_36px_rgba(0,0,0,0.3)] ring-1 ring-white/[0.045] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                   expanded === "today"
                     ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
                     : "overflow-hidden"
@@ -1184,20 +1166,22 @@ export default function InboxCard() {
                       setExpanded(expanded === "today" ? null : "today");
                     }
                   }}
-                  className="group cursor-pointer border-b border-zinc-700/65 px-5 pb-5 pt-5 transition-colors duration-200 hover:bg-white/[0.025] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
+                  className="group cursor-pointer border-b border-zinc-700/65 px-5 pb-5 pt-5 transition-colors duration-200 bg-[#23354b] hover:bg-[#2c4059] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <CardTitle className="text-2xl font-semibold tracking-tight text-zinc-50">
+                        <CardTitle className="text-2xl font-semibold tracking-tight text-[#bfdbfe]">
                           Today
                         </CardTitle>
-                        <span className="text-xs text-zinc-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
-                          ↗
-                        </span>
+                        {expanded !== "today" && (
+                          <span className="text-xs text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
+                            ↗
+                          </span>
+                        )}
                       </div>
 
-                      <p className="mt-1 text-xs text-zinc-400">
+                      <p className="mt-1 text-xs text-zinc-300">
                         {today.toLocaleDateString(undefined, {
                           weekday: "long",
                           month: "long",
@@ -1205,31 +1189,15 @@ export default function InboxCard() {
                           year: "numeric",
                         })}
                       </p>
-
-                      <p className="mt-1 text-xs text-zinc-400">
-                        Make today count.
-                      </p>
                     </div>
 
                     <div className="flex items-start gap-3 text-right">
-                      {expanded === "today" && (
-                        <button
-                          className="text-sm text-zinc-400 hover:text-zinc-100"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setExpanded(null);
-                          }}
-                          aria-label="Close Today expanded view"
-                        >
-                          ✕
-                        </button>
-                      )}
                       <div>
-                        <div className="text-sm font-medium text-zinc-500">
+                        <div className="text-sm font-medium text-zinc-300">
                           {todayItems.length} tasks
                         </div>
 
-                        <div className="mt-1 text-[11px] text-zinc-400">
+                        <div className="mt-1 text-[11px] text-zinc-300">
                           {todayCompleted} done · {todayPending} remaining
                         </div>
                       </div>
@@ -1238,7 +1206,7 @@ export default function InboxCard() {
                 </CardHeader>
 
                 <CardContent
-                  className={`min-h-0 flex-1 overflow-y-auto p-5 sm:p-6 ${
+                  className={`min-h-0 flex-1 overflow-y-auto mogtd-scrollbar p-5 sm:p-6 ${
                     expanded === "today" ? "overscroll-contain" : ""
                   }`}
                 >
@@ -1269,34 +1237,32 @@ export default function InboxCard() {
                     </div>
                   )}
 
-                  <div className="mt-5 flex items-center justify-between border-t border-zinc-700/65 pt-4">
-                    <span className="text-[11px] text-zinc-400">
-                      Focus on what matters today.
-                    </span>
-
-                    <div className="flex items-center gap-3">
-                      <button
-                        onClick={() =>
-                          setExpanded(expanded === "today" ? null : "today")
-                        }
-                        className="text-xs font-medium text-zinc-400 hover:text-zinc-100"
-                      >
-                        {expanded === "today" ? "Close" : "View all →"}
-                      </button>
-                      <button
-                        onClick={() => {
-                          const todayTask = todayItems.find(
-                            (item) => !item.completed,
-                          );
-                          if (todayTask) openTaskDetails(todayTask);
-                        }}
-                        disabled={todayPending === 0}
-                        className="text-xs font-medium text-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        Review today →
-                      </button>
+                  {(expanded !== "today" || todayPending > 0) && (
+                    <div className="mt-5 flex items-center justify-end border-t border-zinc-700/65 pt-4">
+                      <div className="flex items-center gap-3">
+                        {expanded !== "today" && (
+                          <button
+                            onClick={() => setExpanded("today")}
+                            className="text-xs font-medium text-zinc-400 hover:text-zinc-100"
+                          >
+                            View all →
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            const todayTask = todayItems.find(
+                              (item) => !item.completed,
+                            );
+                            if (todayTask) openTaskDetails(todayTask);
+                          }}
+                          disabled={todayPending === 0}
+                          className="text-xs font-medium text-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          Review today →
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             </TodayDropZone>
@@ -1306,7 +1272,7 @@ export default function InboxCard() {
               {/* INBOX */}
               <InboxDropZone isDragging={Boolean(activeItem)}>
                 <Card
-                  className={`border-zinc-700/75 bg-gradient-to-br from-[#222426] to-[#191a1c] shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
+                  className={`pt-0 border-zinc-700/75 bg-gradient-to-br from-[#222426] to-[#191a1c] shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                     expanded === "inbox"
                       ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
                       : "overflow-hidden"
@@ -1324,44 +1290,34 @@ export default function InboxCard() {
                         setExpanded(expanded === "inbox" ? null : "inbox");
                       }
                     }}
-                    className="group relative cursor-pointer pb-2 transition-colors duration-200 hover:bg-zinc-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
+                    className="group relative cursor-pointer pt-4 pb-2 transition-colors duration-200 bg-[#352b49] hover:bg-[#403454] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
                   >
-                    {expanded === "inbox" && (
-                      <button
-                        className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpanded(null);
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
-
-                    <div className="flex items-center justify-between pr-8">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-sm font-semibold">
+                        <CardTitle className="text-sm font-semibold text-[#c4b5fd]">
                           Inbox
                         </CardTitle>
 
-                        <p className="mt-1 text-[11px] text-zinc-400">
+                        <p className="mt-1 text-[11px] text-zinc-300">
                           Quick capture & loose tasks
                         </p>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
+                        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300">
                           {inboxItems.length}
                         </span>
-                        <span className="text-xs text-zinc-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
-                          ↗
-                        </span>
+                        {expanded !== "inbox" && (
+                          <span className="text-xs text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
+                            ↗
+                          </span>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
 
                   <CardContent
-                    className={`min-h-0 flex-1 overflow-y-auto pt-2 ${
+                    className={`min-h-0 flex-1 overflow-y-auto mogtd-scrollbar pt-2 ${
                       expanded === "inbox" ? "overscroll-contain" : ""
                     }`}
                     onClick={(e) => e.stopPropagation()}
@@ -1386,7 +1342,7 @@ export default function InboxCard() {
                       className={`${
                         expanded === "inbox"
                           ? "mt-4"
-                          : "mt-3 max-h-28 overflow-y-auto"
+                          : "mt-3 max-h-28 overflow-y-auto mogtd-scrollbar"
                       } space-y-2.5 pr-1`}
                     >
                       {inboxItems.length === 0 ? (
@@ -1406,16 +1362,18 @@ export default function InboxCard() {
                       )}
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setExpanded(expanded === "inbox" ? null : "inbox");
+                    {expanded !== "inbox" && (
+                      <button
+                        onClick={() => {
+                          setExpanded("inbox");
 
-                        setFocusInboxInput(true);
-                      }}
-                      className="mt-3 text-xs font-medium text-zinc-400 hover:text-zinc-100"
-                    >
-                      {expanded === "inbox" ? "Close" : "View all →"}
-                    </button>
+                          setFocusInboxInput(true);
+                        }}
+                        className="mt-3 text-xs font-medium text-zinc-400 hover:text-zinc-100"
+                      >
+                        View all →
+                      </button>
+                    )}
                   </CardContent>
                 </Card>
               </InboxDropZone>
@@ -1423,7 +1381,7 @@ export default function InboxCard() {
               {/* INCUBATOR */}
               <IncubatorDropZone isDragging={Boolean(activeItem)}>
                 <Card
-                  className={`border-zinc-700/75 bg-gradient-to-br from-[#222426] to-[#191a1c] shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
+                  className={`pt-0 border-zinc-700/75 bg-gradient-to-br from-[#222426] to-[#191a1c] shadow-[0_10px_30px_rgba(0,0,0,0.24)] transition-[box-shadow,border-color] duration-200 ease-out motion-reduce:transition-none ${
                     expanded === "incubator"
                       ? "fixed left-1/2 top-1/2 z-50 flex max-h-[85vh] w-[calc(100%-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.65)] ring-1 ring-zinc-600/80 motion-safe:animate-[mogtd-modal-in_260ms_cubic-bezier(0.16,1,0.3,1)]"
                       : "overflow-hidden"
@@ -1443,44 +1401,34 @@ export default function InboxCard() {
                         );
                       }
                     }}
-                    className="group relative cursor-pointer pb-2 transition-colors duration-200 hover:bg-zinc-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
+                    className="group relative cursor-pointer pt-4 pb-2 transition-colors duration-200 bg-[#403522] hover:bg-[#4c402b] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-zinc-400/60"
                   >
-                    {expanded === "incubator" && (
-                      <button
-                        className="absolute right-4 top-4 text-sm text-zinc-400 hover:text-zinc-100"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpanded(null);
-                        }}
-                      >
-                        ✕
-                      </button>
-                    )}
-
-                    <div className="flex items-center justify-between pr-8">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <CardTitle className="text-sm font-semibold">
+                        <CardTitle className="text-sm font-semibold text-[#fcd34d]">
                           Incubator
                         </CardTitle>
 
-                        <p className="mt-1 text-[11px] text-zinc-400">
+                        <p className="mt-1 text-[11px] text-zinc-300">
                           Ideas for later
                         </p>
                       </div>
 
                       <div className="flex items-center gap-2">
-                        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-400">
+                        <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] text-zinc-300">
                           {incubatorItems.length}
                         </span>
-                        <span className="text-xs text-zinc-500 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
-                          ↗
-                        </span>
+                        {expanded !== "incubator" && (
+                          <span className="text-xs text-zinc-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-zinc-200">
+                            ↗
+                          </span>
+                        )}
                       </div>
                     </div>
                   </CardHeader>
 
                   <CardContent
-                    className={`min-h-0 flex-1 overflow-y-auto pt-2 ${
+                    className={`min-h-0 flex-1 overflow-y-auto mogtd-scrollbar pt-2 ${
                       expanded === "incubator" ? "overscroll-contain" : ""
                     }`}
                     onClick={(e) => e.stopPropagation()}
@@ -1504,7 +1452,7 @@ export default function InboxCard() {
                       className={`${
                         expanded === "incubator"
                           ? "mt-4"
-                          : "mt-3 max-h-28 overflow-y-auto"
+                          : "mt-3 max-h-28 overflow-y-auto mogtd-scrollbar"
                       } space-y-2.5 pr-1`}
                     >
                       {incubatorItems.length === 0 ? (
@@ -1524,16 +1472,14 @@ export default function InboxCard() {
                       )}
                     </div>
 
-                    <button
-                      onClick={() =>
-                        setExpanded(
-                          expanded === "incubator" ? null : "incubator",
-                        )
-                      }
-                      className="mt-3 text-xs font-medium text-zinc-400 hover:text-zinc-100"
-                    >
-                      {expanded === "incubator" ? "Close" : "View all →"}
-                    </button>
+                    {expanded !== "incubator" && (
+                      <button
+                        onClick={() => setExpanded("incubator")}
+                        className="mt-3 text-xs font-medium text-zinc-400 hover:text-zinc-100"
+                      >
+                        View all →
+                      </button>
+                    )}
                   </CardContent>
                 </Card>
               </IncubatorDropZone>
@@ -1703,7 +1649,7 @@ export default function InboxCard() {
                               Clear filter
                             </button>
                           </div>
-                          <div className="max-h-48 space-y-1 overflow-y-auto">
+                          <div className="max-h-48 space-y-1 overflow-y-auto mogtd-scrollbar">
                             {items.filter(
                               (item) => item.projectId === activeProjectId,
                             ).length === 0 ? (

@@ -576,7 +576,7 @@ function DayDetailModal({
       }}
     >
       <div className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-zinc-600/70 bg-[#191a1c] shadow-[0_35px_110px_rgba(0,0,0,0.8)]">
-        <div className="flex items-center justify-between border-b border-zinc-800 bg-gradient-to-r from-zinc-900 to-zinc-950 px-5 py-6 sm:px-7">
+        <div className="flex items-center justify-between border-b border-emerald-900/70 bg-gradient-to-r from-[#203c32] to-[#203c32] px-5 py-6 sm:px-7">
           <div>
             <h3 className="text-lg font-semibold text-zinc-100">
               {format(day, "EEEE, d MMMM yyyy")}
@@ -598,7 +598,7 @@ function DayDetailModal({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-5 sm:p-8">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto mogtd-scrollbar p-5 sm:p-8">
           {dayItems.length === 0 ? (
             <div className="rounded-xl border border-dashed border-zinc-800 px-4 py-10 text-center">
               <p className="text-sm text-zinc-400">
@@ -802,7 +802,7 @@ export default function WeeklyCalendar({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-700/55 bg-[#242628] px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-900/70 bg-[#203c32] px-4 py-3">
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -831,7 +831,7 @@ export default function WeeklyCalendar({
           </button>
         </div>
 
-        <div className="text-sm font-medium text-zinc-300">
+        <div className="text-sm font-medium text-emerald-100">
           {format(weekStart, "d MMM")} – {format(weekDays[6], "d MMM yyyy")}
         </div>
 
@@ -875,7 +875,7 @@ export default function WeeklyCalendar({
             {openOrganizer === "projects" && projectControls && (
               <div
                 id="mogtd-projects-panel"
-                className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,560px)] w-[min(90vw,440px)] overflow-y-auto rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
+                className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,560px)] w-[min(90vw,440px)] overflow-y-auto mogtd-scrollbar rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
               >
                 {projectControls}
               </div>
@@ -883,7 +883,7 @@ export default function WeeklyCalendar({
             {openOrganizer === "contexts" && contextControls && (
               <div
                 id="mogtd-contexts-panel"
-                className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,440px)] w-[min(90vw,360px)] overflow-y-auto rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
+                className="absolute right-0 top-full z-50 mt-2 max-h-[min(70vh,440px)] w-[min(90vw,360px)] overflow-y-auto mogtd-scrollbar rounded-xl border border-zinc-600 bg-[#1b1c1e] shadow-[0_24px_65px_rgba(0,0,0,0.65)]"
               >
                 {contextControls}
               </div>
