@@ -31,6 +31,7 @@ import { SignInButton } from "@clerk/nextjs";
 import {
   Bell,
   CalendarDays,
+  Maximize2,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -282,6 +283,7 @@ function MonthlyCalendar() {
   const createTask = useMutation(api.tasks.createTask);
 
   const moveTask = useMutation(api.tasks.updateTask);
+  const toggleTask = useMutation(api.tasks.toggleComplete);
 
   // REMINDER MUTATIONS
 
@@ -310,6 +312,10 @@ function MonthlyCalendar() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
 
   const [selected, setSelected] = useState(() => key(new Date()));
+  const [expandedDay, setExpandedDay] = useState(false);
+  const expandedClose = useRef<HTMLButtonElement>(null);
+  const expandedScroll = useRef<HTMLDivElement>(null);
+  const expandTrigger = useRef<HTMLElement | null>(null);
 
   // FILTERS
 
@@ -360,6 +366,41 @@ function MonthlyCalendar() {
       dialog.current.close();
     }
   }, [draft]);
+
+  useEffect(() => {
+    if (!expandedDay) return;
+    expandedClose.current?.focus();
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+      expandTrigger.current?.focus();
+    };
+  }, [expandedDay]);
+
+  useEffect(() => {
+    if (expandedDay) expandedScroll.current?.scrollTo({ top: 0 });
+  }, [selected, expandedDay]);
+
+  useEffect(() => {
+    if (
+      !expandedDay ||
+      draft ||
+      taskId ||
+      newTask !== null ||
+      postpone ||
+      quickAdd
+    )
+      return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !lock.current && !dragTitle) {
+        event.preventDefault();
+        setExpandedDay(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [expandedDay, draft, taskId, newTask, postpone, quickAdd, dragTitle]);
 
   // ==================== CALENDAR DAYS ====================
 
@@ -449,6 +490,15 @@ function MonthlyCalendar() {
     setSelected(date);
 
     setMonth(startOfMonth(localDate(date)));
+  }
+
+  function expandDay(date: string) {
+    expandTrigger.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    select(date);
+    setExpandedDay(true);
   }
 
   function navigate(amount: number) {
@@ -561,9 +611,16 @@ function MonthlyCalendar() {
       return;
     }
 
-    const date = String(over.id);
+    const target = String(over.id);
+    const expandedTarget =
+      target === "expanded-prev" || target === "expanded-next";
+    // Reject stale or background drop targets before any database mutation.
+    if (expandedDay !== expandedTarget) return;
+    const date = expandedTarget
+      ? key(addDays(localDate(selected), target === "expanded-prev" ? -1 : 1))
+      : target;
 
-    if (!days.some((day) => key(day) === date)) {
+    if (!expandedTarget && !days.some((day) => key(day) === date)) {
       return;
     }
 
@@ -662,7 +719,17 @@ function MonthlyCalendar() {
   return (
     <DndContext
       sensors={sensors}
-      collisionDetection={pointerWithin}
+      collisionDetection={(args) =>
+        pointerWithin({
+          ...args,
+          droppableContainers: args.droppableContainers.filter((container) => {
+            const isExpandedTarget =
+              container.id === "expanded-prev" ||
+              container.id === "expanded-next";
+            return expandedDay ? isExpandedTarget : !isExpandedTarget;
+          }),
+        })
+      }
       onDragStart={({ active }) => {
         setDragTitle(
           tasks?.find(
@@ -677,6 +744,7 @@ function MonthlyCalendar() {
       }}
       onDragOver={({ over }) => {
         clearDragTimer();
+        if (expandedDay) return;
         const direction =
           over?.id === "month-prev" ? -1 : over?.id === "month-next" ? 1 : 0;
         if (direction)
@@ -821,7 +889,7 @@ function MonthlyCalendar() {
               </div>
             </div>
 
-            {dragTitle && (
+            {dragTitle && !expandedDay && (
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <DayCell
                   date="month-prev"
@@ -918,16 +986,27 @@ function MonthlyCalendar() {
                             {format(day, "d")}
                           </button>
 
-                          <button
-                            type="button"
-                            title="Add task or reminder"
-                            aria-label={`Add entry on ${date}`}
-                            disabled={busy || tasks === undefined}
-                            onClick={() => setQuickAdd(date)}
-                            className="rounded-md p-1 text-zinc-500 opacity-60 hover:bg-zinc-700 hover:text-white group-hover:opacity-100"
-                          >
-                            <Plus size={13} />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Expand day"
+                              aria-label={`Expand ${date}`}
+                              onClick={() => expandDay(date)}
+                              className="rounded p-1 text-zinc-500 hover:bg-zinc-700 hover:text-white"
+                            >
+                              <Maximize2 size={13} />
+                            </button>
+                            <button
+                              type="button"
+                              title="Add task or reminder"
+                              aria-label={`Add entry on ${date}`}
+                              disabled={busy || tasks === undefined}
+                              onClick={() => setQuickAdd(date)}
+                              className="rounded-md p-1 text-zinc-500 opacity-60 hover:bg-zinc-700 hover:text-white group-hover:opacity-100"
+                            >
+                              <Plus size={13} />
+                            </button>
+                          </div>
                         </div>
 
                         {/* DRAGGABLE ENTRIES */}
@@ -957,7 +1036,7 @@ function MonthlyCalendar() {
                           {entries.length > 3 && (
                             <button
                               type="button"
-                              onClick={() => select(date)}
+                              onClick={() => expandDay(date)}
                               className="w-full px-1 text-left text-[11px] text-zinc-400 hover:text-zinc-100"
                             >
                               +{entries.length - 3} more
@@ -993,7 +1072,24 @@ function MonthlyCalendar() {
           <div className="grid gap-5 xl:grid-cols-2">
             {/* SELECTED DAY */}
 
-            <section className="space-y-3 rounded-2xl border border-zinc-700/60 bg-[#191a1c] p-5">
+            {expandedDay && (
+              <div
+                className="fixed inset-0 z-50 bg-black/75"
+                onClick={() => {
+                  if (!busy && !dragTitle) setExpandedDay(false);
+                }}
+              />
+            )}
+            <section
+              role={expandedDay ? "dialog" : undefined}
+              aria-modal={expandedDay ? true : undefined}
+              aria-label={expandedDay ? "Expanded calendar day" : undefined}
+              className={
+                expandedDay
+                  ? "fixed inset-3 z-[55] mx-auto flex max-w-5xl flex-col overflow-hidden rounded-2xl border border-zinc-700 bg-[#191a1c] p-4 shadow-2xl sm:inset-8 sm:p-6"
+                  : "space-y-3 rounded-2xl border border-zinc-700/60 bg-[#191a1c] p-5"
+              }
+            >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="flex items-center gap-2 font-semibold">
@@ -1009,6 +1105,47 @@ function MonthlyCalendar() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
+                  {expandedDay ? (
+                    <>
+                      <button
+                        className={button}
+                        aria-label="Previous day"
+                        disabled={busy || !!dragTitle}
+                        onClick={() =>
+                          select(key(addDays(localDate(selected), -1)))
+                        }
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <button
+                        className={button}
+                        aria-label="Next day"
+                        disabled={busy || !!dragTitle}
+                        onClick={() =>
+                          select(key(addDays(localDate(selected), 1)))
+                        }
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                      <button
+                        ref={expandedClose}
+                        className={button}
+                        aria-label="Close expanded day"
+                        disabled={busy || !!dragTitle}
+                        onClick={() => setExpandedDay(false)}
+                      >
+                        <X size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className={button}
+                      aria-label="Expand selected day"
+                      onClick={() => expandDay(selected)}
+                    >
+                      <Maximize2 size={15} />
+                    </button>
+                  )}
                   <button
                     className={button}
                     disabled={busy || tasks === undefined}
@@ -1029,203 +1166,270 @@ function MonthlyCalendar() {
                 </div>
               </div>
 
-              {/* EMPTY DAY */}
-
-              {!active.tasks.length && !active.reminders.length && (
-                <p className="py-4 text-sm text-zinc-400">
-                  Nothing scheduled for this day.
-                </p>
+              {expandedDay && (
+                <div className="mt-3 grid shrink-0 grid-cols-2 gap-2 text-xs text-zinc-400">
+                  <DayCell
+                    date="expanded-prev"
+                    className="rounded-lg border border-dashed border-zinc-600 p-2 text-center"
+                  >
+                    Drop to previous day
+                  </DayCell>
+                  <DayCell
+                    date="expanded-next"
+                    className="rounded-lg border border-dashed border-zinc-600 p-2 text-center"
+                  >
+                    Drop to next day
+                  </DayCell>
+                </div>
               )}
+              {expandedDay && (notice || error) && (
+                <div className="mt-2 text-sm" role="status">
+                  {error || notice}
+                  {undo && (
+                    <button
+                      className="ml-3 underline"
+                      disabled={busy}
+                      onClick={async () => {
+                        const previous = undo;
+                        if (await run(previous.action, "Move undone"))
+                          select(previous.date);
+                      }}
+                    >
+                      Undo
+                    </button>
+                  )}
+                </div>
+              )}
+              <div
+                ref={expandedScroll}
+                className={
+                  expandedDay
+                    ? "mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1"
+                    : "space-y-3"
+                }
+              >
+                {/* EMPTY DAY */}
 
-              {/* SELECTED DAY REMINDERS */}
+                {!active.tasks.length && !active.reminders.length && (
+                  <p className="py-4 text-sm text-zinc-400">
+                    Nothing scheduled for this day.
+                  </p>
+                )}
 
-              {active.reminders.map((reminder) => (
-                <div
-                  key={reminder._id}
-                  className={`rounded-lg border border-amber-400/15 bg-amber-400/5 p-3 ${
-                    reminder.dismissed ? "opacity-50" : ""
-                  }`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
+                {/* SELECTED DAY REMINDERS */}
+
+                {active.reminders.length > 0 && (
+                  <h3 className="text-sm font-semibold text-amber-200">
+                    Reminders · {active.reminders.length}
+                  </h3>
+                )}
+                {active.reminders.map((reminder) => (
+                  <div
+                    key={reminder._id}
+                    className={`rounded-lg border border-amber-400/15 bg-amber-400/5 p-3 ${
+                      reminder.dismissed ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <PanelHandle
+                        id={reminder._id}
+                        title={reminder.title}
+                        disabled={busy}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <button
+                          type="button"
+                          onClick={() => open(reminder.date, reminder)}
+                          className={`break-words text-left text-sm font-medium text-amber-200 hover:text-amber-100 ${
+                            reminder.dismissed ? "line-through" : ""
+                          }`}
+                        >
+                          {reminder.title}
+                        </button>
+
+                        <p className="mt-1 text-xs text-zinc-500">
+                          Reminder
+                          {reminder.time ? ` · ${reminder.time}` : ""}
+                          {reminder.dismissed ? " · Dismissed" : ""}
+                        </p>
+
+                        {reminder.notes && (
+                          <p className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-400">
+                            {reminder.notes}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* REMINDER ACTIONS */}
+
+                      <div className="flex flex-wrap items-center gap-1">
+                        {!reminder.dismissed && (
+                          <button
+                            className={button}
+                            disabled={busy}
+                            onClick={() => {
+                              setError("");
+                              setPostpone(reminder);
+                              setPostponeDate(
+                                key(addDays(localDate(today), 1)),
+                              );
+                            }}
+                          >
+                            Postpone
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={button}
+                          disabled={busy}
+                          title="Convert to Inbox task"
+                          onClick={() => convertReminder(reminder)}
+                        >
+                          To Inbox
+                        </button>
+
+                        <button
+                          type="button"
+                          className={button}
+                          disabled={busy}
+                          aria-label={
+                            reminder.dismissed
+                              ? "Restore reminder"
+                              : "Dismiss reminder"
+                          }
+                          title={
+                            reminder.dismissed
+                              ? "Restore reminder"
+                              : "Dismiss reminder"
+                          }
+                          onClick={() =>
+                            void run(
+                              () =>
+                                dismiss({
+                                  id: reminder._id,
+                                  dismissed: !reminder.dismissed,
+                                }),
+
+                              reminder.dismissed
+                                ? "Reminder restored"
+                                : "Reminder dismissed",
+                            )
+                          }
+                        >
+                          <CheckCircle2 size={15} />
+                        </button>
+
+                        <button
+                          type="button"
+                          className={button}
+                          disabled={busy}
+                          aria-label="Edit reminder"
+                          onClick={() => open(reminder.date, reminder)}
+                        >
+                          <Pencil size={14} />
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`${button} hover:text-red-400`}
+                          disabled={busy}
+                          aria-label="Delete reminder"
+                          onClick={() => {
+                            if (window.confirm("Delete this reminder?")) {
+                              void run(
+                                () =>
+                                  remove({
+                                    id: reminder._id,
+                                  }),
+
+                                "Reminder deleted",
+                              );
+                            }
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* SELECTED DAY TASKS */}
+
+                {active.tasks.length > 0 && (
+                  <h3 className="text-sm font-semibold text-zinc-300">
+                    Tasks · {active.tasks.filter((t) => t.completed).length}/
+                    {active.tasks.length} completed
+                  </h3>
+                )}
+                {active.tasks.map((task) => (
+                  <div
+                    key={task._id}
+                    className="flex items-start gap-3 rounded-lg border border-zinc-700/60 bg-[#222426] p-3"
+                  >
                     <PanelHandle
-                      id={reminder._id}
-                      title={reminder.title}
+                      id={task._id}
+                      title={task.title}
                       disabled={busy}
                     />
+                    <button
+                      type="button"
+                      aria-label={
+                        task.completed ? "Mark incomplete" : "Complete task"
+                      }
+                      disabled={busy}
+                      onClick={() =>
+                        void run(
+                          () => toggleTask({ id: task._id }),
+                          task.completed ? "Task reopened" : "Task completed",
+                        )
+                      }
+                      className={`mt-0.5 shrink-0 ${
+                        task.completed ? "text-zinc-300" : "text-zinc-600"
+                      }`}
+                    >
+                      <CheckCircle2 size={17} />
+                    </button>
+
                     <div className="min-w-0 flex-1">
                       <button
                         type="button"
-                        onClick={() => open(reminder.date, reminder)}
-                        className={`break-words text-left text-sm font-medium text-amber-200 hover:text-amber-100 ${
-                          reminder.dismissed ? "line-through" : ""
+                        onClick={() => setTaskId(task._id)}
+                        className={`break-words text-left text-sm font-medium hover:text-white ${
+                          task.completed
+                            ? "text-zinc-500 line-through"
+                            : "text-zinc-200"
                         }`}
                       >
-                        {reminder.title}
+                        <span
+                          className={`mr-2 inline-block h-2 w-2 rounded-full ${task.priority === "high" ? "bg-red-400" : task.priority === "low" ? "bg-zinc-500" : "bg-amber-400"}`}
+                        />
+                        {task.title}
                       </button>
 
-                      <p className="mt-1 text-xs text-zinc-500">
-                        Reminder
-                        {reminder.time ? ` · ${reminder.time}` : ""}
-                        {reminder.dismissed ? " · Dismissed" : ""}
+                      <p className="text-xs text-zinc-500">
+                        Scheduled task ·{" "}
+                        {task.completed ? "Completed" : "Pending"}
                       </p>
 
-                      {reminder.notes && (
-                        <p className="mt-2 whitespace-pre-wrap break-words text-xs text-zinc-400">
-                          {reminder.notes}
+                      {task.notes && (
+                        <p className="mt-1 whitespace-pre-wrap break-words text-xs text-zinc-400">
+                          {task.notes}
                         </p>
                       )}
                     </div>
 
-                    {/* REMINDER ACTIONS */}
-
-                    <div className="flex flex-wrap items-center gap-1">
-                      {!reminder.dismissed && (
-                        <button
-                          className={button}
-                          disabled={busy}
-                          onClick={() => {
-                            setError("");
-                            setPostpone(reminder);
-                            setPostponeDate(key(addDays(localDate(today), 1)));
-                          }}
-                        >
-                          Postpone
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className={button}
-                        disabled={busy}
-                        title="Convert to Inbox task"
-                        onClick={() => convertReminder(reminder)}
-                      >
-                        To Inbox
-                      </button>
-
-                      <button
-                        type="button"
-                        className={button}
-                        disabled={busy}
-                        aria-label={
-                          reminder.dismissed
-                            ? "Restore reminder"
-                            : "Dismiss reminder"
-                        }
-                        title={
-                          reminder.dismissed
-                            ? "Restore reminder"
-                            : "Dismiss reminder"
-                        }
-                        onClick={() =>
-                          void run(
-                            () =>
-                              dismiss({
-                                id: reminder._id,
-                                dismissed: !reminder.dismissed,
-                              }),
-
-                            reminder.dismissed
-                              ? "Reminder restored"
-                              : "Reminder dismissed",
-                          )
-                        }
-                      >
-                        <CheckCircle2 size={15} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className={button}
-                        disabled={busy}
-                        aria-label="Edit reminder"
-                        onClick={() => open(reminder.date, reminder)}
-                      >
-                        <Pencil size={14} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className={`${button} hover:text-red-400`}
-                        disabled={busy}
-                        aria-label="Delete reminder"
-                        onClick={() => {
-                          if (window.confirm("Delete this reminder?")) {
-                            void run(
-                              () =>
-                                remove({
-                                  id: reminder._id,
-                                }),
-
-                              "Reminder deleted",
-                            );
-                          }
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-
-              {/* SELECTED DAY TASKS */}
-
-              {active.tasks.map((task) => (
-                <div
-                  key={task._id}
-                  className="flex items-start gap-3 rounded-lg border border-zinc-700/60 bg-[#222426] p-3"
-                >
-                  <PanelHandle
-                    id={task._id}
-                    title={task.title}
-                    disabled={busy}
-                  />
-                  <button
-                    type="button"
-                    aria-label="Open task details"
-                    onClick={() => setTaskId(task._id)}
-                    className={`mt-0.5 shrink-0 ${
-                      task.completed ? "text-zinc-300" : "text-zinc-600"
-                    }`}
-                  >
-                    <CheckCircle2 size={17} />
-                  </button>
-
-                  <div className="min-w-0 flex-1">
                     <button
                       type="button"
+                      className={button}
+                      aria-label="Edit task details"
                       onClick={() => setTaskId(task._id)}
-                      className={`break-words text-left text-sm font-medium hover:text-white ${
-                        task.completed
-                          ? "text-zinc-500 line-through"
-                          : "text-zinc-200"
-                      }`}
                     >
-                      {task.title}
+                      <Pencil size={14} />
                     </button>
-
-                    <p className="text-xs text-zinc-500">
-                      Scheduled task ·{" "}
-                      {task.completed ? "Completed" : "Pending"}
-                    </p>
-
-                    {task.notes && (
-                      <p className="mt-1 whitespace-pre-wrap break-words text-xs text-zinc-400">
-                        {task.notes}
-                      </p>
-                    )}
                   </div>
-
-                  <button
-                    type="button"
-                    className={button}
-                    aria-label="Edit task details"
-                    onClick={() => setTaskId(task._id)}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                </div>
-              ))}
+                ))}
+              </div>
             </section>
 
             {/* ==================== DUE AND OVERDUE ==================== */}
@@ -1753,7 +1957,7 @@ function MonthlyCalendar() {
 
       {/* ==================== DRAG OVERLAY ==================== */}
 
-      <DragOverlay>
+      <DragOverlay zIndex={100}>
         {dragTitle ? (
           <div className="rounded-lg border border-zinc-500 bg-zinc-800 p-2 text-sm text-white shadow-xl">
             {dragTitle}
