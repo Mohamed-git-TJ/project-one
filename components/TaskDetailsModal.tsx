@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useId, useRef } from "react";
 import type { Dispatch, SetStateAction, ReactNode } from "react";
 
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -135,18 +136,96 @@ export default function TaskDetailsModal({
   extraActions,
   scheduleControl,
 }: Props) {
+  const uid = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  const saving = isBusy(`details:${selectedTask._id}`);
+  const submitting = useRef(false);
+  const validation = !detailsTitle.trim()
+    ? "Enter a task title."
+    : detailsRecurring &&
+        (!Number.isSafeInteger(detailsRecurrenceInterval) ||
+          detailsRecurrenceInterval < 1)
+      ? "Enter a positive whole-number repeat interval."
+      : detailsRecurring &&
+          detailsRecurrenceCount !== undefined &&
+          (!Number.isSafeInteger(detailsRecurrenceCount) ||
+            detailsRecurrenceCount < 0)
+        ? "Enter a nonnegative whole number of repeats."
+        : detailsRecurring &&
+            detailsRecurrenceType === "weekly" &&
+            !detailsRecurrenceDays.length
+          ? "Choose at least one weekday."
+          : "";
+  const unit = {
+    daily: "day",
+    weekly: "week",
+    monthly: "month",
+    yearly: "year",
+  }[detailsRecurrenceType];
+
+  async function submit() {
+    if (validation || saving || submitting.current) return;
+    submitting.current = true;
+    try {
+      await saveTaskDetails();
+    } finally {
+      submitting.current = false;
+    }
+  }
+
+  useEffect(() => {
+    const previous = document.activeElement;
+    panel.current?.querySelector<HTMLInputElement>("input")?.focus();
+    return () => {
+      if (previous instanceof HTMLElement && previous.isConnected)
+        previous.focus();
+    };
+  }, [selectedTask._id]);
+
   return (
-    <div className="fixed left-1/2 top-1/2 z-[70] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 px-4">
+    <div
+      ref={panel}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.stopPropagation();
+          if (!saving && !submitting.current) onClose();
+        } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          e.stopPropagation();
+          void submit();
+        } else if (e.key === "Tab") {
+          const controls = Array.from(
+            panel.current?.querySelectorAll<HTMLElement>(
+              'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]',
+            ) ?? [],
+          ).filter((el) => el.getClientRects().length > 0);
+          const first = controls[0],
+            last = controls[controls.length - 1];
+          if (e.shiftKey && document.activeElement === first && last) {
+            e.preventDefault();
+            last.focus();
+          } else if (!e.shiftKey && document.activeElement === last && first) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }}
+      className="fixed left-1/2 top-1/2 z-[70] w-full max-w-3xl -translate-x-1/2 -translate-y-1/2 px-4"
+    >
       <Card
         role="dialog"
         aria-modal="true"
-        aria-label="Task Details"
-        className="flex max-h-[90dvh] flex-col gap-0 overflow-hidden rounded-2xl border-zinc-700 bg-[#191a1c] text-zinc-100 shadow-[0_35px_110px_rgba(0,0,0,0.75)]"
+        aria-labelledby={`${uid}-heading`}
+        aria-busy={saving}
+        className="flex max-h-[94dvh] sm:max-h-[90dvh] flex-col gap-0 overflow-hidden rounded-2xl border-zinc-700 bg-[#191a1c] text-zinc-100 shadow-[0_35px_110px_rgba(0,0,0,0.75)]"
       >
         {/* ==================== HEADER ==================== */}
 
-        <CardHeader className="relative border-b border-zinc-800 bg-gradient-to-br from-[#282a2c] to-[#202123] px-6 py-5">
-          <CardTitle className="text-xl font-semibold tracking-tight text-white">
+        <CardHeader className="relative border-b border-zinc-800 bg-gradient-to-br from-[#282a2c] to-[#202123] px-4 py-4 sm:px-6 sm:py-5">
+          <CardTitle
+            id={`${uid}-heading`}
+            className="text-xl font-semibold tracking-tight text-white"
+          >
             Task Details
           </CardTitle>
 
@@ -156,9 +235,11 @@ export default function TaskDetailsModal({
 
           <button
             className="absolute right-4 top-4 rounded-lg border border-zinc-700 p-2 text-sm text-zinc-400 hover:bg-zinc-700 hover:text-zinc-100"
+            type="button"
+            disabled={saving}
             aria-label="Close task details"
             onClick={() => {
-              onClose();
+              if (!submitting.current) onClose();
             }}
           >
             ✕
@@ -167,7 +248,7 @@ export default function TaskDetailsModal({
 
         {/* ==================== CONTENT ==================== */}
 
-        <CardContent className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-5 sm:p-6">
+        <CardContent className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain p-4 sm:p-6">
           {/* ==================== GENERAL ==================== */}
 
           <div className="rounded-lg border border-zinc-700/70 bg-[#222426] px-4 py-3">
@@ -181,9 +262,15 @@ export default function TaskDetailsModal({
           {/* TITLE */}
 
           <div>
-            <label className="text-sm font-medium text-zinc-300">Title</label>
+            <label
+              htmlFor={`${uid}-title`}
+              className="text-sm font-medium text-zinc-300"
+            >
+              Title
+            </label>
 
             <input
+              id={`${uid}-title`}
               value={detailsTitle}
               onChange={(e) => setDetailsTitle(e.target.value)}
               className="mt-1 w-full rounded-lg border border-zinc-700 bg-[#111214] px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-400 focus:outline-none outline-none focus:border-zinc-600"
@@ -193,18 +280,19 @@ export default function TaskDetailsModal({
           {/* NOTES */}
 
           <div>
-            <label className="text-sm font-medium text-zinc-300">Notes</label>
+            <label
+              htmlFor={`${uid}-notes`}
+              className="text-sm font-medium text-zinc-300"
+            >
+              Notes
+            </label>
 
             <Textarea
+              id={`${uid}-notes`}
               value={detailsNotes}
               onChange={(e) => setDetailsNotes(e.target.value)}
               placeholder="Add notes..."
               className="mt-1 min-h-[110px] rounded-lg border-zinc-700 bg-[#111214] text-zinc-100"
-              onKeyDown={(e) => {
-                if (e.ctrlKey && e.key === "Enter") {
-                  saveTaskDetails();
-                }
-              }}
             />
           </div>
 
@@ -224,11 +312,15 @@ export default function TaskDetailsModal({
             {/* PRIORITY */}
 
             <div>
-              <label className="text-sm font-medium text-zinc-300">
+              <label
+                htmlFor={`${uid}-priority`}
+                className="text-sm font-medium text-zinc-300"
+              >
                 Priority
               </label>
 
               <select
+                id={`${uid}-priority`}
                 value={detailsPriority}
                 onChange={(e) =>
                   setDetailsPriority(
@@ -246,11 +338,15 @@ export default function TaskDetailsModal({
             {/* PROJECT */}
 
             <div>
-              <label className="text-sm font-medium text-zinc-300">
+              <label
+                htmlFor={`${uid}-project`}
+                className="text-sm font-medium text-zinc-300"
+              >
                 Project
               </label>
 
               <select
+                id={`${uid}-project`}
                 value={detailsProjectId ?? ""}
                 onChange={(e) =>
                   setDetailsProjectId(
@@ -313,16 +409,17 @@ export default function TaskDetailsModal({
 
             <div className="flex gap-2">
               <input
+                aria-label="Custom context"
                 value={newContext}
                 onChange={(e) => setNewContext(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key !== "Enter") return;
+                  if (e.key !== "Enter" || e.ctrlKey || e.metaKey) return;
 
                   e.preventDefault();
 
                   const value = newContext.trim();
 
-                  if (!value) return;
+                  if (!value || value === "@") return;
 
                   const context = value.startsWith("@") ? value : `@${value}`;
 
@@ -333,7 +430,7 @@ export default function TaskDetailsModal({
                   setNewContext("");
                 }}
                 placeholder="Add custom context..."
-                className="flex-1 rounded-lg border border-zinc-700 bg-[#111214] px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-400 focus:outline-none text-sm text-zinc-100 outline-none"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-[#111214] px-3 py-2.5 text-sm text-zinc-100 focus:border-zinc-400 focus:outline-none text-sm text-zinc-100 outline-none"
               />
 
               <button
@@ -341,7 +438,7 @@ export default function TaskDetailsModal({
                 onClick={() => {
                   const value = newContext.trim();
 
-                  if (!value) return;
+                  if (!value || value === "@") return;
 
                   const context = value.startsWith("@") ? value : `@${value}`;
 
@@ -371,9 +468,15 @@ export default function TaskDetailsModal({
           </div>
 
           <div className="space-y-3">
-            <label className="text-sm font-medium text-zinc-300">Repeat</label>
+            <label
+              htmlFor={`${uid}-repeat`}
+              className="text-sm font-medium text-zinc-300"
+            >
+              Repeat
+            </label>
 
             <select
+              id={`${uid}-repeat`}
               value={detailsRecurring ? detailsRecurrenceType : "none"}
               onChange={(e) => {
                 if (e.target.value === "none") {
@@ -401,13 +504,18 @@ export default function TaskDetailsModal({
                 {/* RECURRENCE INTERVAL */}
 
                 <div>
-                  <label className="text-sm font-medium text-zinc-300">
+                  <label
+                    htmlFor={`${uid}-interval`}
+                    className="text-sm font-medium text-zinc-300"
+                  >
                     Every
                   </label>
 
                   <input
                     type="number"
                     min="1"
+                    step="1"
+                    id={`${uid}-interval`}
                     value={detailsRecurrenceInterval}
                     onChange={(e) =>
                       setDetailsRecurrenceInterval(
@@ -418,7 +526,8 @@ export default function TaskDetailsModal({
                   />
 
                   <span className="text-xs text-zinc-400">
-                    Example: every 2 weeks
+                    Every {detailsRecurrenceInterval} {unit}
+                    {detailsRecurrenceInterval === 1 ? "" : "s"}
                   </span>
                 </div>
 
@@ -430,7 +539,7 @@ export default function TaskDetailsModal({
                       Repeat on
                     </label>
 
-                    <div className="grid grid-cols-7 gap-1">
+                    <div className="grid grid-cols-4 gap-1 sm:grid-cols-7">
                       {recurrenceWeekdays.map((day) => {
                         const selected = detailsRecurrenceDays.includes(
                           day.value,
@@ -471,13 +580,19 @@ export default function TaskDetailsModal({
                 {/* NUMBER OF REPEATS */}
 
                 <div>
-                  <label className="text-sm font-medium text-zinc-300">
-                    Number of repeats
+                  <label
+                    htmlFor={`${uid}-count`}
+                    className="text-sm font-medium text-zinc-300"
+                  >
+                    Remaining repeats
                   </label>
 
                   <input
                     type="number"
                     min="0"
+                    step="1"
+                    id={`${uid}-count`}
+                    placeholder="Unlimited"
                     value={detailsRecurrenceCount ?? ""}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -490,15 +605,25 @@ export default function TaskDetailsModal({
                   />
                 </div>
 
+                <p className="text-xs text-zinc-400">
+                  Leave repeats blank for no count limit. Zero means no further
+                  occurrences. If both limits are set, the first reached ends
+                  the recurrence.
+                </p>
+
                 {/* RECURRENCE END DATE */}
 
                 <div>
-                  <label className="text-sm font-medium text-zinc-300">
+                  <label
+                    htmlFor={`${uid}-end`}
+                    className="text-sm font-medium text-zinc-300"
+                  >
                     End date (optional)
                   </label>
 
                   <input
                     type="date"
+                    id={`${uid}-end`}
                     value={detailsRecurrenceEndDate}
                     onChange={(e) =>
                       setDetailsRecurrenceEndDate(e.target.value)
@@ -522,16 +647,24 @@ export default function TaskDetailsModal({
           {/* OPTIONAL SCHEDULE CONTROL */}
 
           {scheduleControl}
+          {validation && (
+            <p role="alert" className="text-sm text-amber-300">
+              {validation}
+            </p>
+          )}
         </CardContent>
 
         {/* ==================== FOOTER ==================== */}
 
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-zinc-700/70 bg-[#202123] px-5 py-4 sm:px-6">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-zinc-700/70 bg-[#202123] px-4 py-3 sm:px-6">
           {/* DELETE TASK */}
 
           <button
             type="button"
-            onClick={() => void deleteItem(selectedTask._id)}
+            disabled={saving}
+            onClick={() => {
+              if (!submitting.current) void deleteItem(selectedTask._id);
+            }}
             className="rounded-lg px-3 py-2 text-sm text-red-400 hover:bg-red-500/10"
           >
             Delete task
@@ -546,8 +679,9 @@ export default function TaskDetailsModal({
 
             <button
               type="button"
+              disabled={saving}
               onClick={() => {
-                onClose();
+                if (!submitting.current) onClose();
               }}
               className="rounded-lg border border-zinc-600 px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700"
             >
@@ -558,10 +692,8 @@ export default function TaskDetailsModal({
 
             <button
               type="button"
-              onClick={saveTaskDetails}
-              disabled={
-                !detailsTitle.trim() || isBusy(`details:${selectedTask._id}`)
-              }
+              onClick={() => void submit()}
+              disabled={!!validation || saving}
               className="rounded-lg bg-zinc-100 px-5 py-2 text-sm font-semibold text-zinc-950 hover:bg-white disabled:opacity-50"
             >
               {isBusy(`details:${selectedTask._id}`)
